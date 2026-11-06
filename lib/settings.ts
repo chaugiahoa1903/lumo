@@ -4,12 +4,25 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 export interface Settings {
   reduceMotion: boolean;
-  sessionMinutes: number; // giới hạn mềm mỗi phiên (phút)
-  sessionTasks: number; // giới hạn mềm mỗi phiên (số task)
+  sessionMinutes: number; // giới hạn mềm tổng thời gian học mỗi phiên (phút)
+  sessionTasks: number; // giới hạn mềm số task mỗi phiên
   dailyGoalXp: number; // mục tiêu XP mỗi ngày
+  focusMinutes: number; // Pomodoro: độ dài một hiệp tập trung
+  breakMinutes: number; // Pomodoro: nghỉ ngắn
+  longBreakMinutes: number; // Pomodoro: nghỉ dài
+  pomoRounds: number; // Pomodoro: số hiệp mỗi vòng
 }
 
-export const DEFAULT_SETTINGS: Settings = { reduceMotion: false, sessionMinutes: 20, sessionTasks: 8, dailyGoalXp: 30 };
+export const DEFAULT_SETTINGS: Settings = {
+  reduceMotion: false,
+  sessionMinutes: 50,
+  sessionTasks: 8,
+  dailyGoalXp: 30,
+  focusMinutes: 25,
+  breakMinutes: 5,
+  longBreakMinutes: 15,
+  pomoRounds: 4,
+};
 export const SETTINGS_KEY = "lumo.settings.v1";
 const EVENT = "lumo-settings";
 
@@ -22,11 +35,16 @@ function parse(raw: string): Settings {
   if (!raw) return DEFAULT_SETTINGS;
   try {
     const p = JSON.parse(raw) as Partial<Settings>;
+    const d = DEFAULT_SETTINGS;
     return {
       reduceMotion: p.reduceMotion === true,
-      sessionMinutes: clampInt(p.sessionMinutes, 5, 60, DEFAULT_SETTINGS.sessionMinutes),
-      sessionTasks: clampInt(p.sessionTasks, 3, 20, DEFAULT_SETTINGS.sessionTasks),
-      dailyGoalXp: clampInt(p.dailyGoalXp, 10, 100, DEFAULT_SETTINGS.dailyGoalXp),
+      sessionMinutes: clampInt(p.sessionMinutes, 5, 240, d.sessionMinutes),
+      sessionTasks: clampInt(p.sessionTasks, 3, 20, d.sessionTasks),
+      dailyGoalXp: clampInt(p.dailyGoalXp, 10, 100, d.dailyGoalXp),
+      focusMinutes: clampInt(p.focusMinutes, 5, 90, d.focusMinutes),
+      breakMinutes: clampInt(p.breakMinutes, 1, 30, d.breakMinutes),
+      longBreakMinutes: clampInt(p.longBreakMinutes, 5, 60, d.longBreakMinutes),
+      pomoRounds: clampInt(p.pomoRounds, 2, 8, d.pomoRounds),
     };
   } catch {
     return DEFAULT_SETTINGS;

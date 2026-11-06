@@ -10,6 +10,7 @@ import PageNav from "@/components/PageNav";
 import SettingsApplier from "@/components/SettingsApplier";
 import CommandPalette from "@/components/CommandPalette";
 import BadgeWatcher from "@/components/BadgeWatcher";
+import SoundPill from "@/components/SoundPill";
 import { ToastProvider } from "@/components/Toast";
 
 const anton = Anton({
@@ -52,6 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           <CommandPalette />
           <BadgeWatcher />
+          <SoundPill />
         </ToastProvider>
       </body>
     </html>

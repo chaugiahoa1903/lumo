@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Course, type Module, type Session, type Task, type TaskType } from "@/lib/db";
 import { completeTask, endSession, isSessionActive, logStart, skipTask, type Outcome } from "@/lib/learning";
 import { etaDate, etaDays, formatEtaDate, loadPace, MIN_TASKS_FOR_ETA, type Pace } from "@/lib/eta";
 import { BLOCK_OPTIONS, formatClock, pickSelected, queueFor, stepTask, upcomingOf } from "@/lib/focus";
+import { breakMinutes, describeConfig, isLongBreak, roundNumber, type PomoConfig } from "@/lib/pomodoro";
 import { levelInfo, sumXp } from "@/lib/xp";
 import { useSettings } from "@/lib/settings";
+import { ambient } from "@/lib/ambient";
 import { useToast } from "@/components/Toast";
 import CountUp from "@/components/CountUp";
 import TimerDial from "@/components/TimerDial";
+import FocusBar from "@/components/FocusBar";
+import PomoSetup from "@/components/PomoSetup";
+import { SoundCenter, VolumePill } from "@/components/SoundPlayer";
 import Wheel from "@/components/Wheel";
 import { btnCls, Button, Panel, ProgressBar } from "@/components/ui";
 
@@ -38,7 +43,7 @@ type View = {
   paceCount: number;
   xp: { total: number; today: number };
 };
-type Phase = "idle" | "running" | "feedback" | "rested";
+type Phase = "idle" | "running" | "feedback" | "rested" | "break";
 interface Result {
   taskId: number;
   title: string;
@@ -146,8 +151,26 @@ export default function NextPage() {
   const [barPct, setBarPct] = useState(0);
   const [busy, setBusy] = useState(false);
   const [why, setWhy] = useState(false);
+  const [pomoStarted, setPomoStarted] = useState(false);
+  const [roundsDone, setRoundsDone] = useState(0);
+  const [setup, setSetup] = useState<{ mode: "start" | "edit"; taskId: number | null } | null>(null);
+  const [breakMs, setBreakMs] = useState(0);
+  const [breakTotalMs, setBreakTotalMs] = useState(0);
   const activeRef = useRef(0);
   const taskStartRef = useRef(0);
+  const bellRef = useRef(false);
+
+  const cfg: PomoConfig = {
+    focusMin: settings.focusMinutes,
+    shortBreakMin: settings.breakMinutes,
+    longBreakMin: settings.longBreakMinutes,
+    rounds: settings.pomoRounds,
+  };
+  const blockTotalMs = cfg.focusMin * 60_000;
+  const blockElapsed = Math.max(0, activeMs - blockOffset);
+  const over = blockElapsed >= blockTotalMs;
+  const remainingSec = Math.max(0, Math.ceil((blockTotalMs - blockElapsed) / 1000));
+  const breakSec = Math.max(0, Math.ceil(breakMs / 1000));
 
   const view = useLiveQuery<View>(async () => {
     const [course, lastSession, paceInfo, events] = await Promise.all([
@@ -166,10 +189,22 @@ export default function NextPage() {
     return { course, tasks, modules, session, pace: paceInfo.pace, paceCount: paceInfo.count, xp };
   }, []);
 
+  const finishBreak = useCallback(
+    (natural: boolean) => {
+      if (natural) {
+        ambient.chime();
+        toast("Hết giờ nghỉ. Sẵn sàng cho hiệp tiếp theo?", { ms: 8000 });
+      }
+      setPhase("idle");
+    },
+    [toast]
+  );
+
   useEffect(() => {
     activeRef.current = activeMs;
   });
 
+  // Đồng hồ hiệp: chỉ chạy khi đang làm task.
   useEffect(() => {
     if (!ticking) return;
     let last = Date.now();
@@ -181,6 +216,43 @@ export default function NextPage() {
     }, 250);
     return () => window.clearInterval(id);
   }, [ticking]);
+
+  // Đồng hồ nghỉ.
+  useEffect(() => {
+    if (phase !== "break") return;
+    let last = Date.now();
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      const d = now - last;
+      last = now;
+      setBreakMs((v) => Math.max(0, v - d));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase === "break" && breakMs <= 0) finishBreak(true);
+  }, [phase, breakMs, finishBreak]);
+
+  // Chuông báo hết hiệp (một lần mỗi hiệp).
+  useEffect(() => {
+    if (phase === "running" && ticking && over && !bellRef.current) {
+      bellRef.current = true;
+      ambient.chime();
+      toast(`Hết hiệp ${cfg.focusMin} phút. Xong task này rồi nghỉ nhé.`, { ms: 9000 });
+    }
+    if (!over) bellRef.current = false;
+  }, [phase, ticking, over, cfg.focusMin, toast]);
+
+  // Giờ còn lại hiện trên tiêu đề tab.
+  useEffect(() => {
+    if (phase === "running" && ticking) document.title = `${formatClock(remainingSec)} · Lumo`;
+    else if (phase === "break") document.title = `Nghỉ ${formatClock(breakSec)} · Lumo`;
+    else document.title = "Lumo";
+    return () => {
+      document.title = "Lumo";
+    };
+  }, [phase, ticking, remainingSec, breakSec]);
 
   if (view === undefined) return <p className="text-white/70">Đang tải...</p>;
 
@@ -200,12 +272,6 @@ export default function NextPage() {
   }
 
   // ----- dữ liệu dẫn xuất -----
-  const blockMin = settings.sessionMinutes;
-  const blockTotalMs = blockMin * 60_000;
-  const blockElapsed = Math.max(0, activeMs - blockOffset);
-  const over = blockElapsed >= blockTotalMs;
-  const remainingSec = Math.max(0, Math.ceil((blockTotalMs - blockElapsed) / 1000));
-
   const focusMod = moduleId !== null && modules.some((m) => m.id === moduleId) ? moduleId : null;
   let queue = queueFor(tasks, focusMod);
   if (queue.length === 0 && focusMod !== null) queue = queueFor(tasks, null);
@@ -221,17 +287,45 @@ export default function NextPage() {
   const capHit = (n: number, sec: number) => n >= settings.sessionTasks || sec >= settings.sessionMinutes * 60;
   const sessionCapped = !!session && capHit(session.taskCount ?? 0, session.activeSeconds ?? 0);
   const taskSec = Math.max(0, Math.floor((activeMs - taskStartRef.current) / 1000));
+  const roundText = `Hiệp ${roundNumber(roundsDone, cfg.rounds)}/${cfg.rounds}`;
 
   // ----- hành động -----
   function begin(t: Task) {
-    if (over) setBlockOffset(activeMs); // hiệp trước đã hết thì bắt đầu hiệp mới
-    taskStartRef.current = activeMs;
+    ambient.unlock();
+    taskStartRef.current = activeRef.current;
     setRevealed(false);
     setRunningId(t.id);
     setSelectedId(t.id);
     setPhase("running");
     setTicking(true);
     void logStart(t.id);
+  }
+
+  function requestStart(t: Task) {
+    ambient.unlock();
+    if (!pomoStarted) {
+      setSetup({ mode: "start", taskId: t.id });
+      return;
+    }
+    begin(t);
+  }
+
+  function confirmSetup(c: PomoConfig) {
+    updateSettings({
+      focusMinutes: c.focusMin,
+      breakMinutes: c.shortBreakMin,
+      longBreakMinutes: c.longBreakMin,
+      pomoRounds: c.rounds,
+    });
+    const s = setup;
+    setSetup(null);
+    if (s?.mode === "start") {
+      setPomoStarted(true);
+      setRoundsDone(0);
+      setBlockOffset(activeRef.current);
+      const t = tasks.find((x) => x.id === s.taskId) ?? current;
+      if (t) begin(t);
+    }
   }
 
   async function finish(t: Task, outcome?: Outcome) {
@@ -284,6 +378,9 @@ export default function NextPage() {
     if (sessionId !== undefined) await endSession(sessionId);
     setRunningId(null);
     setTicking(false);
+    setPomoStarted(false);
+    setRoundsDone(0);
+    setBlockOffset(activeRef.current);
     setPhase("rested");
   }
 
@@ -295,25 +392,68 @@ export default function NextPage() {
     setPhase("idle");
   }
 
-  // ----- phần dùng chung -----
-  const dialLabel =
-    phase === "running" ? (ticking ? "Đang tập trung" : "Tạm dừng") : over ? "Hết hiệp" : "Sẵn sàng";
+  function startBreak() {
+    const doneRounds = roundsDone + 1;
+    const ms = breakMinutes(cfg, doneRounds) * 60_000;
+    setRoundsDone(doneRounds);
+    setBreakTotalMs(ms);
+    setBreakMs(ms);
+    setBlockOffset(activeRef.current);
+    setRunningId(null);
+    setTicking(false);
+    setPhase("break");
+  }
 
-  const compact = (body: ReactNode, pauseBtn = false) => (
+  function moreBlock() {
+    setRoundsDone((r) => r + 1);
+    setBlockOffset(activeRef.current);
+    setRunningId(null);
+    setTicking(false);
+    setPhase("idle");
+  }
+
+  // ----- phần dùng chung -----
+  const dialLabel = over ? "Hết hiệp" : phase === "feedback" ? "Tạm nghỉ tay" : "Sẵn sàng";
+
+  const compact = (body: ReactNode) => (
     <div className="mx-auto max-w-2xl">
       <div className="flex flex-col items-center gap-4 pb-6">
         <TimerDial size="md" label={dialLabel} remainingSec={remainingSec} totalSec={blockTotalMs / 1000} />
-        {pauseBtn && (
-          <Button variant="ghost" onClick={() => setTicking((v) => !v)}>
-            {ticking ? "Tạm dừng" : "Tiếp tục"}
-          </Button>
-        )}
       </div>
       {body}
     </div>
   );
 
-  // ----- các trạng thái gọn: nghỉ, đang làm, phản hồi, hết task, điểm dừng -----
+  const breakOffer = (sessionId?: number) => {
+    const doneRounds = roundsDone + 1;
+    const long = isLongBreak(doneRounds, cfg.rounds);
+    const mins = breakMinutes(cfg, doneRounds);
+    return (
+      <Panel
+        title={`Hết hiệp ${roundNumber(roundsDone, cfg.rounds)}/${cfg.rounds}`}
+        hint={`Bạn đã tập trung ${cfg.focusMin} phút`}
+        tone="amber"
+      >
+        <p className="font-display text-3xl uppercase leading-tight">
+          {long ? `Xong ${cfg.rounds} hiệp, nghỉ dài ${mins} phút` : `Nghỉ ${mins} phút nhé`}
+        </p>
+        <p className="mt-2 text-sm">Nghỉ giữa các hiệp là một phần của Pomodoro. Nếu đang có đà, bạn vẫn học thêm được.</p>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button onClick={startBreak}>Nghỉ {mins} phút</Button>
+          <Button variant="ghost" onClick={moreBlock}>
+            Học thêm một hiệp
+          </Button>
+          {sessionId !== undefined && (
+            <Button variant="ghost" onClick={() => rest(sessionId)}>
+              Kết thúc phiên
+            </Button>
+          )}
+        </div>
+      </Panel>
+    );
+  };
+
+  // ----- các trạng thái -----
   if (phase === "rested") {
     return compact(
       <Panel title="Hẹn gặp lại" tone="amber">
@@ -332,19 +472,54 @@ export default function NextPage() {
     );
   }
 
-  if (phase === "running" && running) {
-    const t = running;
-    return compact(
-      <>
-        {over && (
-          <div className="mb-4 rounded-xl border-2 border-ink bg-amber-retro p-4 text-ink">
-            <p className="font-display text-lg uppercase">Hết hiệp {blockMin} phút</p>
-            <p className="mt-1 text-sm">Bạn có thể xong task này rồi nghỉ, hoặc thêm một hiệp nữa.</p>
-            <Button variant="ghost" className="mt-3" onClick={() => setBlockOffset(activeMs)}>
-              Thêm một hiệp
+  if (phase === "break") {
+    const long = isLongBreak(roundsDone, cfg.rounds);
+    return (
+      <div className="mx-auto max-w-2xl">
+        <div className="flex flex-col items-center gap-4 pb-6">
+          <TimerDial
+            size="md"
+            label={long ? "Nghỉ dài" : "Nghỉ ngắn"}
+            remainingSec={breakSec}
+            totalSec={Math.max(1, breakTotalMs / 1000)}
+          />
+        </div>
+        <Panel title={long ? "Nghỉ dài" : "Nghỉ ngắn"} hint={`Vừa xong hiệp ${roundsDone}`} tone="amber">
+          <p className="font-display text-3xl uppercase leading-tight">Đứng dậy một chút</p>
+          <p className="mt-2 text-sm">
+            Uống nước, vươn vai, nhìn ra xa.
+            {current ? ` Task kế tiếp: "${current.title}".` : ""}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Button onClick={() => finishBreak(false)}>Bỏ qua nghỉ</Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setBreakMs((v) => v + 60_000);
+                setBreakTotalMs((v) => v + 60_000);
+              }}
+            >
+              +1 phút
             </Button>
           </div>
-        )}
+        </Panel>
+      </div>
+    );
+  }
+
+  if (phase === "running" && running) {
+    const t = running;
+    return (
+      <div className="mx-auto max-w-4xl">
+        <FocusBar
+          remainingSec={remainingSec}
+          totalSec={blockTotalMs / 1000}
+          ticking={ticking}
+          over={over}
+          label={over ? "Hết hiệp, xong task này rồi nghỉ" : ticking ? "Đang tập trung" : "Tạm dừng"}
+          roundText={roundText}
+          onToggle={() => setTicking((v) => !v)}
+        />
         <Panel
           title="Đang làm"
           hint={`${TYPE_LABEL[t.type]} · ước lượng ${t.estMinutes} phút · đã ${formatClock(taskSec)}`}
@@ -353,7 +528,7 @@ export default function NextPage() {
           <p className="font-display text-3xl uppercase leading-tight">{t.title}</p>
           <div className="mt-4 rounded-lg border-2 border-ink bg-white p-4">
             {t.type === "read" ? (
-              <div className="max-h-[50vh] overflow-auto whitespace-pre-wrap leading-relaxed">
+              <div className="max-h-[62vh] overflow-auto whitespace-pre-wrap leading-relaxed">
                 {t.body ?? "(Task này không có nội dung.)"}
               </div>
             ) : (
@@ -389,8 +564,7 @@ export default function NextPage() {
             </Button>
           </div>
         </Panel>
-      </>,
-      true
+      </div>
     );
   }
 
@@ -404,7 +578,8 @@ export default function NextPage() {
       pctAfter >= 100
         ? "Bạn đã hoàn thành toàn bộ khóa học."
         : `Bạn đã hoàn thành ${Math.round(pctAfter)}% – cách mốc ${thr}% chỉ ${need} task.`;
-    const capped = capHit(r.sessionTasks, r.sessionSeconds) || over;
+    const capped = capHit(r.sessionTasks, r.sessionSeconds);
+    const blockOver = over && !capped;
     return compact(
       <div className="space-y-6">
         <div className="relative">
@@ -420,7 +595,7 @@ export default function NextPage() {
             {r.milestone && r.moduleTitle && (
               <p className="mt-1 text-sm">Bạn vừa hoàn thành module &quot;{r.moduleTitle}&quot;.</p>
             )}
-            {!capped && (
+            {!capped && !blockOver && (
               <div className="mt-5 flex flex-wrap gap-3">
                 {nextTask ? (
                   <Button onClick={() => begin(nextTask)}>Làm tiếp</Button>
@@ -443,6 +618,7 @@ export default function NextPage() {
             onMore={() => moreSession(r.sessionId)}
           />
         )}
+        {blockOver && breakOffer(r.sessionId)}
       </div>
     );
   }
@@ -456,7 +632,7 @@ export default function NextPage() {
     );
   }
 
-  if (session && (sessionCapped || over)) {
+  if (session && sessionCapped) {
     return compact(
       <StopPanel
         doneCount={session.taskCount ?? 0}
@@ -466,6 +642,10 @@ export default function NextPage() {
         onMore={() => moreSession(session.id)}
       />
     );
+  }
+
+  if (over && pomoStarted) {
+    return compact(breakOffer(session?.id));
   }
 
   // ----- phòng tập trung -----
@@ -491,17 +671,20 @@ export default function NextPage() {
   ];
   const moduleIndex = focusMod === null ? 0 : 1 + modules.findIndex((m) => m.id === focusMod);
   const blockItems = BLOCK_OPTIONS.map((m) => ({ key: m, label: `${m} phút` }));
-  const blockIndex = Math.max(0, BLOCK_OPTIONS.indexOf(blockMin));
-  const wheelLocked = ticking;
-  const sel = "rounded-full border-2 border-ink bg-white px-3 py-1.5 text-sm text-ink";
+  const blockIndex = Math.max(0, BLOCK_OPTIONS.indexOf(cfg.focusMin));
+  const selCls = "rounded-full border-2 border-ink bg-white px-3 py-1.5 text-sm text-ink";
 
   return (
     <div>
+      {setup && (
+        <PomoSetup initial={cfg} mode={setup.mode} onConfirm={confirmSetup} onClose={() => setSetup(null)} />
+      )}
+
       {/* Chọn nhanh trên màn hẹp (bánh xe chỉ có từ 1024px) */}
       <div className="mb-4 flex flex-wrap items-center justify-center gap-3 lg:hidden">
         <select
           aria-label="Module"
-          className={sel}
+          className={selCls}
           value={focusMod ?? "all"}
           onChange={(e) => {
             const v = e.target.value;
@@ -518,9 +701,9 @@ export default function NextPage() {
         </select>
         <select
           aria-label="Độ dài hiệp"
-          className={sel}
-          value={blockMin}
-          onChange={(e) => updateSettings({ sessionMinutes: Number(e.target.value) })}
+          className={selCls}
+          value={cfg.focusMin}
+          onChange={(e) => updateSettings({ focusMinutes: Number(e.target.value) })}
         >
           {BLOCK_OPTIONS.map((m) => (
             <option key={m} value={m}>
@@ -543,7 +726,6 @@ export default function NextPage() {
             label="Chọn module"
             items={moduleItems}
             index={moduleIndex}
-            disabled={wheelLocked}
             onChange={(i) => {
               setModuleId(i === 0 ? null : modules[i - 1].id);
               setSelectedId(null);
@@ -556,8 +738,7 @@ export default function NextPage() {
             label="Chọn độ dài hiệp"
             items={blockItems}
             index={blockIndex}
-            disabled={wheelLocked}
-            onChange={(i) => updateSettings({ sessionMinutes: BLOCK_OPTIONS[i] })}
+            onChange={(i) => updateSettings({ focusMinutes: BLOCK_OPTIONS[i] })}
           />
         </div>
 
@@ -591,7 +772,7 @@ export default function NextPage() {
                 type="button"
                 aria-label={`Bắt đầu: ${t.title}`}
                 title="Bắt đầu task này"
-                onClick={() => begin(t)}
+                onClick={() => requestStart(t)}
                 className="absolute -top-11 left-1/2 z-10 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full bg-white text-ink opacity-0 transition-opacity focus-visible:opacity-100 group-hover:opacity-100"
               >
                 <Ico className="h-4 w-4">
@@ -633,132 +814,134 @@ export default function NextPage() {
         </ul>
       )}
 
-      {/* Tiến độ khóa học và hy vọng */}
-      <div className="mx-auto mt-2 w-full max-w-sm text-center">
-        <p className="text-sm text-white/80">
-          Còn <CountUp value={left} /> task nữa là xong {mod ? `"${mod.title}"` : "module này"}
-        </p>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
-          <div className="h-full bg-sky transition-[width] duration-700" style={{ width: `${pct}%` }} />
-        </div>
-        <p className="mt-1 text-xs text-white/60">
-          {course.title} · {done}/{total} task
-        </p>
-      </div>
-
-      {/* Thanh điều khiển dưới */}
-      <div className="relative mx-auto mt-4 w-full max-w-[1100px] pb-4">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-[14%] top-7 hidden h-56 rounded-t-[50%] border-t border-white/15 lg:block"
-        />
-        <div className="relative flex flex-col items-center">
-          <button type="button" onClick={() => begin(current)} aria-label="Bắt đầu task" className={roundBtn}>
-            <Ico className="h-6 w-6">
-              <path d="M8 5v14l11-7z" fill="currentColor" stroke="none" />
-            </Ico>
-          </button>
-
-          <div className="mt-5 flex w-full max-w-2xl items-center justify-between gap-4 px-2">
-            <button
-              type="button"
-              aria-label="Task trước"
-              disabled={!prevT}
-              onClick={() => prevT && setSelectedId(prevT.id)}
-              className="rounded-full p-2 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <Ico className="h-6 w-6">
-                <path d="M6 5v14M19 5L9 12l10 7z" />
-              </Ico>
-            </button>
-            <div className="min-w-0 flex-1 text-center">
-              <p className="truncate font-display text-3xl uppercase text-white">{current.title}</p>
-              <p className="mt-1 truncate text-sm text-white/60">
-                {mod?.title ?? course.title} · {TYPE_LABEL[current.type]} · khoảng {current.estMinutes} phút
-                {current.isMilestone ? " · mốc" : ""}
-              </p>
-              {current.teaser && <p className="mt-1 truncate text-sm text-white/70">{current.teaser}</p>}
-              <p className="mt-2 text-sm font-semibold text-sky">{hope}</p>
-            </div>
-            <button
-              type="button"
-              aria-label="Task sau"
-              disabled={!nextT}
-              onClick={() => nextT && setSelectedId(nextT.id)}
-              className="rounded-full p-2 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <Ico className="h-6 w-6">
-                <path d="M18 5v14M5 5l10 7-10 7z" />
-              </Ico>
-            </button>
-          </div>
-
+      {/* Task đang chọn và nút bắt đầu học */}
+      <div className="mx-auto mt-2 w-full max-w-2xl text-center">
+        <div className="flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => setWhy((v) => !v)}
-            aria-expanded={why}
-            className="mt-3 text-xs text-white/60 underline hover:text-white"
+            aria-label="Task trước"
+            disabled={!prevT}
+            onClick={() => prevT && setSelectedId(prevT.id)}
+            className="rounded-full p-2 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
           >
-            {why ? "Ẩn chi tiết" : "Vì sao Luna chọn task này? · ngày hoàn thành dự kiến"}
+            <Ico className="h-6 w-6">
+              <path d="M6 5v14M19 5L9 12l10 7z" />
+            </Ico>
           </button>
-          {why && (
-            <div className="fade-in mt-3 w-full max-w-2xl space-y-2 rounded-xl border border-white/20 bg-white/5 p-4 text-sm text-white/80">
-              <p>
-                Hiện Luna chọn task đầu tiên chưa làm theo thứ tự khóa học (bạn có thể chọn module bằng bánh xe trái, hoặc
-                bấm bong bóng để đổi task). Công thức chấm điểm (độ gần mốc, đa dạng loại task, độ quên, thời lượng còn
-                lại) sẽ có ở bước sau.
-              </p>
-              {current.reason && <p>Cách chia task này: {current.reason}</p>}
-              <p>
-                <span className="font-semibold text-white">Ngày hoàn thành dự kiến:</span>{" "}
-                {etaText(remEst, pace, paceCount)}
-              </p>
-              <p>
-                Giới hạn mềm mỗi phiên: {settings.sessionMinutes} phút hoặc {settings.sessionTasks} task, chỉnh ở Cài đặt.
-              </p>
-            </div>
-          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-3xl uppercase text-white">{current.title}</p>
+            <p className="mt-1 truncate text-sm text-white/60">
+              {mod?.title ?? course.title} · {TYPE_LABEL[current.type]} · khoảng {current.estMinutes} phút
+              {current.isMilestone ? " · mốc" : ""}
+            </p>
+            {current.teaser && <p className="mt-1 truncate text-sm text-white/70">{current.teaser}</p>}
+          </div>
+          <button
+            type="button"
+            aria-label="Task sau"
+            disabled={!nextT}
+            onClick={() => nextT && setSelectedId(nextT.id)}
+            className="rounded-full p-2 text-white transition-colors hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            <Ico className="h-6 w-6">
+              <path d="M18 5v14M5 5l10 7-10 7z" />
+            </Ico>
+          </button>
         </div>
 
-        {/* Góc trái: cấp độ và XP hôm nay */}
-        <div className="absolute bottom-4 left-0 hidden items-center gap-3 rounded-full bg-white/10 p-2 pr-5 lg:flex">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white font-display text-2xl text-ink">
-            {lv.level}
-          </span>
-          <div className="w-36">
-            <p className="text-xs font-semibold text-white">{lv.title}</p>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/20">
-              <div className="h-full bg-amber-retro" style={{ width: `${(lv.into / lv.span) * 100}%` }} />
-            </div>
-            <p className="mt-1 text-[11px] text-white/60">
-              {xp.today}/{goal} XP hôm nay
+        <div className="mt-4 flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => requestStart(current)}
+            className="btn-press rounded-full bg-amber-retro px-10 py-3 font-display text-xl uppercase tracking-wide text-ink"
+          >
+            Bắt đầu học
+          </button>
+          <button
+            type="button"
+            onClick={() => setSetup({ mode: "edit", taskId: null })}
+            className="text-xs text-white/60 underline hover:text-white"
+          >
+            Thiết lập hiệp · {describeConfig(cfg)}
+          </button>
+        </div>
+
+        <p className="mt-3 text-sm font-semibold text-sky">{hope}</p>
+
+        <div className="mx-auto mt-3 w-full max-w-sm">
+          <p className="text-sm text-white/80">
+            Còn <CountUp value={left} /> task nữa là xong {mod ? `"${mod.title}"` : "module này"}
+          </p>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/15">
+            <div className="h-full bg-sky transition-[width] duration-700" style={{ width: `${pct}%` }} />
+          </div>
+          <p className="mt-1 text-xs text-white/60">
+            {course.title} · {done}/{total} task · Cấp {lv.level} {lv.title} · {xp.today}/{goal} XP hôm nay
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setWhy((v) => !v)}
+          aria-expanded={why}
+          className="mt-3 text-xs text-white/60 underline hover:text-white"
+        >
+          {why ? "Ẩn chi tiết" : "Vì sao Luna chọn task này? · ngày hoàn thành dự kiến"}
+        </button>
+        {why && (
+          <div className="fade-in mt-3 space-y-2 rounded-xl border border-white/20 bg-white/5 p-4 text-left text-sm text-white/80">
+            <p>
+              Hiện Luna chọn task đầu tiên chưa làm theo thứ tự khóa học (bạn có thể chọn module bằng bánh xe trái, hoặc
+              bấm bong bóng để đổi task). Công thức chấm điểm (độ gần mốc, đa dạng loại task, độ quên, thời lượng còn lại)
+              sẽ có ở bước sau.
+            </p>
+            {current.reason && <p>Cách chia task này: {current.reason}</p>}
+            <p>
+              <span className="font-semibold text-white">Ngày hoàn thành dự kiến:</span> {etaText(remEst, pace, paceCount)}
+            </p>
+            <p>
+              Giới hạn mềm mỗi phiên: {settings.sessionMinutes} phút hoặc {settings.sessionTasks} task, chỉnh ở Cài đặt.
             </p>
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Góc phải: ba nút tắt */}
-        <div className="absolute bottom-4 right-0 hidden items-center gap-2 rounded-full bg-white/10 p-2 lg:flex">
-          <Link href="/plan" aria-label="Mở Lộ trình" title="Lộ trình" className={roundBtn}>
-            <Ico>
-              <path d="M5 6h14M5 12h14M5 18h9" />
-            </Ico>
-          </Link>
-          <Link href="/review" aria-label="Mở Ôn tập" title="Ôn tập" className={roundBtn}>
-            <Ico>
-              <path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5" />
-            </Ico>
-          </Link>
-          <button
-            type="button"
-            aria-label="Bỏ qua task này"
-            title="Bỏ qua task này"
-            onClick={() => skip(current)}
-            className={roundBtn}
-          >
-            <Ico>
-              <path d="M5 5l9 7-9 7zM18 5v14" />
-            </Ico>
-          </button>
+      {/* Thanh dưới: âm lượng, trình phát âm thanh nền, lối tắt */}
+      <div className="relative mx-auto mt-10 w-full max-w-[1100px] pb-4">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-[16%] top-7 hidden h-48 rounded-t-[50%] border-t border-white/15 lg:block"
+        />
+        <div className="relative grid items-end gap-6 lg:grid-cols-[1fr_auto_1fr]">
+          <div className="flex justify-center lg:justify-start">
+            <VolumePill />
+          </div>
+          <SoundCenter />
+          <div className="flex justify-center lg:justify-end">
+            <div className="flex items-center gap-2 rounded-full bg-white/10 p-2">
+              <Link href="/plan" aria-label="Mở Lộ trình" title="Lộ trình" className={roundBtn}>
+                <Ico>
+                  <path d="M5 6h14M5 12h14M5 18h9" />
+                </Ico>
+              </Link>
+              <Link href="/review" aria-label="Mở Ôn tập" title="Ôn tập" className={roundBtn}>
+                <Ico>
+                  <path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5" />
+                </Ico>
+              </Link>
+              <button
+                type="button"
+                aria-label="Bỏ qua task này"
+                title="Bỏ qua task này"
+                onClick={() => skip(current)}
+                className={roundBtn}
+              >
+                <Ico>
+                  <path d="M5 5l9 7-9 7zM18 5v14" />
+                </Ico>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

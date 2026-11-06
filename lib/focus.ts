@@ -1,6 +1,6 @@
 import type { Task } from "./db";
 
-export const BLOCK_OPTIONS = [10, 15, 20, 25, 30, 45];
+export const BLOCK_OPTIONS = [15, 20, 25, 30, 45, 50];
 
 export function formatClock(totalSeconds: number): string {
   const s = Math.max(0, Math.round(totalSeconds));
