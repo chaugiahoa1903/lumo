@@ -103,9 +103,10 @@ export default function CommandPalette() {
         role="dialog"
         aria-modal="true"
         aria-label="Tìm nhanh"
-        className="palette-in w-full max-w-lg overflow-hidden rounded-xl border-2 border-ink bg-white shadow-[6px_6px_0_var(--color-ink)]"
+        className="palette-in relative w-full max-w-lg overflow-hidden rounded-xl border-2 border-ink bg-white shadow-[6px_6px_0_var(--color-ink)]"
         onMouseDown={(e) => e.stopPropagation()}
       >
+        <svg viewBox="0 0 24 24" aria-hidden className="pointer-events-none absolute left-4 top-[0.9rem] h-5 w-5 text-cobalt" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
         <input
           autoFocus
           value={query}
@@ -127,7 +128,7 @@ export default function CommandPalette() {
           }}
           placeholder="Gõ lệnh hoặc tên màn hình..."
           aria-label="Tìm lệnh"
-          className="w-full border-b-2 border-ink px-4 py-3 text-base outline-none"
+          className="w-full border-b-2 border-ink py-3 pl-12 pr-4 text-base outline-none"
         />
         <ul role="listbox" className="max-h-72 overflow-auto p-2">
           {list.length === 0 && (

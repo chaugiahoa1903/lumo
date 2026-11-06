@@ -140,11 +140,26 @@ export default function Sidebar() {
         </div>
 
         <button
+          type="button"
           onClick={openPalette}
-          className="mt-6 flex w-full items-center justify-between rounded-full border-2 border-white/40 px-4 py-2 text-sm text-white/90 transition-colors hover:bg-white/15"
+          aria-label="Tìm nhanh (Ctrl K)"
+          className="mt-6 flex w-full items-center gap-3 rounded-xl border-2 border-ink bg-white px-3 py-2.5 text-left text-cobalt shadow-[3px_3px_0_var(--color-ink)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_var(--color-ink)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_var(--color-ink)]"
         >
-          <span>Tìm nhanh</span>
-          <kbd className="rounded border border-white/50 px-1.5 text-xs">Ctrl K</kbd>
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.3-4.3" />
+          </svg>
+          <span className="flex-1 text-sm font-semibold text-neutral-500">Tìm nhanh...</span>
+          <kbd className="rounded-md border-2 border-ink bg-sky px-1.5 py-0.5 text-[11px] font-semibold text-ink">Ctrl K</kbd>
         </button>
 
         <div className="mt-auto">

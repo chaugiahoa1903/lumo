@@ -7,6 +7,7 @@ import Sidebar from "@/components/Sidebar";
 import PageNav from "@/components/PageNav";
 import SettingsApplier from "@/components/SettingsApplier";
 import CommandPalette from "@/components/CommandPalette";
+import BadgeWatcher from "@/components/BadgeWatcher";
 import { ToastProvider } from "@/components/Toast";
 
 const anton = Anton({
@@ -54,6 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <BottomNav />
           </div>
           <CommandPalette />
+          <BadgeWatcher />
         </ToastProvider>
       </body>
     </html>

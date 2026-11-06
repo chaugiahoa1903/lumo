@@ -9,6 +9,7 @@ import { etaDate, etaDays, formatEtaDate, loadPace, MIN_TASKS_FOR_ETA, type Pace
 import { useSettings } from "@/lib/settings";
 import { useToast } from "@/components/Toast";
 import CountUp from "@/components/CountUp";
+import QuestStrip from "@/components/QuestStrip";
 import { btnCls, Button, PageHeader, Panel, ProgressBar } from "@/components/ui";
 
 const TYPE_LABEL: Record<TaskType, string> = { read: "Đọc", flashcard: "Flashcard", recall: "Nhớ lại" };
@@ -444,6 +445,7 @@ export default function NextPage() {
   return (
     <div>
       <PageHeader title="Next Up" subtitle={course.title} />
+      <QuestStrip />
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
         {main}
         {side}

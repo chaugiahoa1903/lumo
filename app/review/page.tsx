@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { activityTimestamps, loadDeck, syncReviews, toCard, totalXp } from "@/lib/review";
+import { activityTimestamps, loadDeck, syncReviews, toCard } from "@/lib/review";
+import { totalXp } from "@/lib/xp";
 import { computeStreak } from "@/lib/streak";
 import { corpusOf, type Card } from "@/lib/quiz";
 import { formatStamp } from "@/lib/text";
@@ -154,7 +155,7 @@ export default function ReviewPage() {
             <p className="font-display text-5xl leading-none">
               <CountUp value={xp} />
             </p>
-            <p className="mt-2 text-sm">+10 mỗi thẻ đúng ngay lần đầu, +5 nếu phải hỏi lại.</p>
+            <p className="mt-2 text-sm">Task đọc +8 XP, flashcard/nhớ lại +10 XP. Thẻ ôn đúng ngay lần đầu +10 XP, phải hỏi lại +5 XP.</p>
           </Panel>
         </div>
       </div>

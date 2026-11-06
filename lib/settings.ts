@@ -6,9 +6,10 @@ export interface Settings {
   reduceMotion: boolean;
   sessionMinutes: number; // giới hạn mềm mỗi phiên (phút)
   sessionTasks: number; // giới hạn mềm mỗi phiên (số task)
+  dailyGoalXp: number; // mục tiêu XP mỗi ngày
 }
 
-export const DEFAULT_SETTINGS: Settings = { reduceMotion: false, sessionMinutes: 20, sessionTasks: 8 };
+export const DEFAULT_SETTINGS: Settings = { reduceMotion: false, sessionMinutes: 20, sessionTasks: 8, dailyGoalXp: 30 };
 export const SETTINGS_KEY = "lumo.settings.v1";
 const EVENT = "lumo-settings";
 
@@ -25,6 +26,7 @@ function parse(raw: string): Settings {
       reduceMotion: p.reduceMotion === true,
       sessionMinutes: clampInt(p.sessionMinutes, 5, 60, DEFAULT_SETTINGS.sessionMinutes),
       sessionTasks: clampInt(p.sessionTasks, 3, 20, DEFAULT_SETTINGS.sessionTasks),
+      dailyGoalXp: clampInt(p.dailyGoalXp, 10, 100, DEFAULT_SETTINGS.dailyGoalXp),
     };
   } catch {
     return DEFAULT_SETTINGS;

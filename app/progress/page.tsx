@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { etaDate, etaDays, formatEtaDate, loadPace, MIN_TASKS_FOR_ETA } from "@/lib/eta";
 import { formatStamp } from "@/lib/text";
 import CountUp from "@/components/CountUp";
+import ConquestMap from "@/components/ConquestMap";
+import BadgeGrid from "@/components/BadgeGrid";
 import { Card, PageHeader, Panel, ProgressBar } from "@/components/ui";
 
 function Stat({
@@ -79,6 +81,11 @@ export default function ProgressPage() {
         <Stat value={total} label="Tổng số task" />
         <Stat value={remain} suffix="'" label="Phút còn lại (ước lượng)" />
         <Stat value={Math.round(studiedSec / 60)} suffix="'" label="Phút đã học (đo thật)" />
+      </div>
+
+      <div className="mt-6 space-y-6">
+        <ConquestMap />
+        <BadgeGrid />
       </div>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_340px]">
