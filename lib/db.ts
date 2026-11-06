@@ -20,6 +20,7 @@ export interface Course {
   id: number;
   title: string;
   materialIds: number[];
+  wordsPerMinute?: number;
   targetDate?: string;
   createdAt: number;
 }
@@ -29,6 +30,7 @@ export interface Module {
   courseId: number;
   title: string;
   order: number;
+  reason?: string;
 }
 
 export interface Task {
@@ -44,6 +46,10 @@ export interface Task {
   materialId?: number;
   reason?: string;
   teaser?: string;
+  body?: string;
+  answer?: string;
+  keywords?: string[];
+  difficulty?: number;
   completedAt?: number;
 }
 
