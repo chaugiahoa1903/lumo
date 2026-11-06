@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db, type Material } from "./db";
 
 export const MAX_PDF_BYTES = 20 * 1024 * 1024;
 
@@ -58,6 +58,10 @@ export async function addPdf(title: string, file: File, tags: string[]) {
 
 export async function deleteMaterial(id: number) {
   await db.materials.delete(id);
+}
+
+export async function restoreMaterial(m: Material) {
+  await db.materials.put(m);
 }
 
 const DEMOS = [

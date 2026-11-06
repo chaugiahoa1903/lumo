@@ -4,7 +4,10 @@ import "./globals.css";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import Sidebar from "@/components/Sidebar";
+import PageNav from "@/components/PageNav";
 import SettingsApplier from "@/components/SettingsApplier";
+import CommandPalette from "@/components/CommandPalette";
+import { ToastProvider } from "@/components/Toast";
 
 const anton = Anton({
   subsets: ["latin", "latin-ext", "vietnamese"],
@@ -32,22 +35,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="vi" className={`${anton.variable} ${bowlby.variable} ${body.variable}`}>
       <body className="bg-cobalt text-ink antialiased">
-        <SettingsApplier />
-        <Sidebar />
-        <div className="md:pl-[240px]">
-          <div className="md:hidden">
-            <AppHeader />
-          </div>
-          <div className="md:py-4 md:pr-4">
-            <div className="min-h-screen overflow-hidden bg-white md:min-h-[calc(100vh-2rem)] md:rounded-2xl md:border-2 md:border-ink">
-              <div className="checker" aria-hidden />
-              <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-10 md:pb-16 md:pt-8">{children}</main>
+        <ToastProvider>
+          <SettingsApplier />
+          <Sidebar />
+          <div className="md:pl-[240px]">
+            <div className="md:hidden">
+              <AppHeader />
+            </div>
+            <div className="md:py-4 md:pr-4">
+              <div className="min-h-screen overflow-hidden bg-white md:min-h-[calc(100vh-2rem)] md:rounded-2xl md:border-2 md:border-ink">
+                <div className="checker" aria-hidden />
+                <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-10 md:pb-28 md:pt-8">{children}</main>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="md:hidden">
-          <BottomNav />
-        </div>
+          <PageNav />
+          <div className="md:hidden">
+            <BottomNav />
+          </div>
+          <CommandPalette />
+        </ToastProvider>
       </body>
     </html>
   );
