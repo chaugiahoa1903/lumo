@@ -7,6 +7,7 @@ const ORDER = [
   { href: "/library", label: "Thư viện" },
   { href: "/plan", label: "Lộ trình" },
   { href: "/next", label: "Next Up" },
+  { href: "/review", label: "Ôn tập" },
   { href: "/progress", label: "Tiến độ" },
 ];
 

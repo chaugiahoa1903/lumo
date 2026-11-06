@@ -71,6 +71,18 @@ export interface AppEvent {
   payload?: Record<string, unknown>;
 }
 
+// Thẻ ôn tập (SM-2): mỗi task flashcard/nhớ lại đã xong có một thẻ.
+export interface Review {
+  taskId: number;
+  courseId: number;
+  ease: number;
+  intervalDays: number;
+  reps: number;
+  lapses: number;
+  dueAt: number;
+  lastReviewedAt?: number;
+}
+
 const db = new Dexie("lumo") as Dexie & {
   materials: EntityTable<Material, "id">;
   courses: EntityTable<Course, "id">;
@@ -78,6 +90,7 @@ const db = new Dexie("lumo") as Dexie & {
   tasks: EntityTable<Task, "id">;
   sessions: EntityTable<Session, "id">;
   events: EntityTable<AppEvent, "id">;
+  reviews: EntityTable<Review, "taskId">;
 };
 
 db.version(1).stores({
@@ -87,6 +100,10 @@ db.version(1).stores({
   tasks: "++id, courseId, moduleId, status, type",
   sessions: "++id, startedAt",
   events: "++id, type, ts",
+});
+
+db.version(2).stores({
+  reviews: "taskId, courseId, dueAt",
 });
 
 export { db };

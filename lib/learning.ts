@@ -1,4 +1,5 @@
 import { db, type Session } from "./db";
+import { DAY_MS, initialSrs } from "./sm2";
 
 export const IDLE_MS = 30 * 60 * 1000; // quá 30 phút không làm gì thì phiên coi như đã kết thúc
 export const MIN_TASK_SECONDS = 10;
@@ -29,7 +30,7 @@ export async function completeTask(
   outcome?: Outcome
 ): Promise<CompleteResult | null> {
   const seconds = Math.min(MAX_TASK_SECONDS, Math.max(MIN_TASK_SECONDS, Math.round(rawSeconds)));
-  return db.transaction("rw", [db.tasks, db.sessions, db.events], async () => {
+  return db.transaction("rw", [db.tasks, db.sessions, db.events, db.reviews], async () => {
     const task = await db.tasks.get(taskId);
     if (!task || task.status === "done") return null;
     const ts = Date.now();
@@ -61,6 +62,17 @@ export async function completeTask(
         sessionId: session.id,
       },
     });
+
+    // Flashcard/nhớ lại đã xong trở thành thẻ ôn: "nhớ" thì ôn sau 1 ngày, "chưa nhớ" thì ôn ngay.
+    if ((task.type === "flashcard" || task.type === "recall") && task.answer?.trim()) {
+      await db.reviews.put({
+        taskId,
+        courseId: task.courseId,
+        ...initialSrs(),
+        dueAt: outcome === "good" ? ts + DAY_MS : ts,
+      });
+    }
+
     return { sessionId: session.id, sessionTasks: taskCount, sessionSeconds: activeSeconds };
   });
 }
@@ -88,9 +100,9 @@ export async function endSession(sessionId: number) {
   });
 }
 
-// Đặt lại tiến độ học: giữ tài liệu, khóa học, module, task; xóa kết quả làm, phiên và sự kiện.
+// Đặt lại tiến độ học: giữ tài liệu, khóa học, module, task; xóa kết quả làm, phiên, thẻ ôn và sự kiện.
 export async function resetProgress() {
-  await db.transaction("rw", [db.tasks, db.sessions, db.events], async () => {
+  await db.transaction("rw", [db.tasks, db.sessions, db.events, db.reviews], async () => {
     await db.tasks.toCollection().modify((t) => {
       t.status = "todo";
       delete t.completedAt;
@@ -99,5 +111,6 @@ export async function resetProgress() {
     });
     await db.sessions.clear();
     await db.events.clear();
+    await db.reviews.clear();
   });
 }

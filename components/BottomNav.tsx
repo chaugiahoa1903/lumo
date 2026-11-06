@@ -7,6 +7,7 @@ const tabs = [
   { href: "/library", label: "Thư viện" },
   { href: "/plan", label: "Lộ trình" },
   { href: "/next", label: "Next Up" },
+  { href: "/review", label: "Ôn tập" },
   { href: "/progress", label: "Tiến độ" },
 ];
 
@@ -23,19 +24,19 @@ export default function BottomNav() {
         {index >= 0 && (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-1.5 left-0 w-1/4 px-1 transition-transform duration-300 ease-out"
+            className="pointer-events-none absolute inset-y-1.5 left-0 w-1/5 px-1 transition-transform duration-300 ease-out"
             style={{ transform: `translateX(${index * 100}%)` }}
           >
             <span className="block h-full rounded-full border-2 border-ink bg-cobalt" />
           </div>
         )}
-        <ul className="relative z-10 grid grid-cols-4">
+        <ul className="relative z-10 grid grid-cols-5">
           {tabs.map((t, i) => (
             <li key={t.href}>
               <Link
                 href={t.href}
                 aria-current={i === index ? "page" : undefined}
-                className={`block py-3 text-center font-display text-sm uppercase tracking-wide transition-colors ${
+                className={`block py-3 text-center font-display text-xs uppercase tracking-wide transition-colors ${
                   i === index ? "text-white" : "text-ink"
                 }`}
               >

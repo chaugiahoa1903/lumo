@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "@/lib/db";
+import { syncReviews } from "@/lib/review";
 import { openPalette } from "@/components/CommandPalette";
 
 function Svg({ children }: { children: ReactNode }) {
@@ -55,6 +58,15 @@ const NAV: Item[] = [
     ),
   },
   {
+    href: "/review",
+    label: "Ôn tập",
+    icon: (
+      <Svg>
+        <path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5" />
+      </Svg>
+    ),
+  },
+  {
     href: "/progress",
     label: "Tiến độ",
     icon: (
@@ -79,6 +91,11 @@ export default function Sidebar() {
   const pathname = usePathname();
   const index = NAV.findIndex((i) => pathname.startsWith(i.href));
   const settingsActive = pathname.startsWith("/settings");
+  const due = useLiveQuery(() => db.reviews.where("dueAt").belowOrEqual(Date.now()).count(), []);
+
+  useEffect(() => {
+    void syncReviews();
+  }, []);
 
   return (
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-[240px] md:block">
@@ -107,6 +124,15 @@ export default function Sidebar() {
                 >
                   {item.icon}
                   {item.label}
+                  {item.href === "/review" && due ? (
+                    <span
+                      className={`ml-auto rounded-full border-2 border-ink px-2 text-xs font-semibold ${
+                        i === index ? "bg-cobalt text-white" : "bg-amber-retro text-ink"
+                      }`}
+                    >
+                      {due}
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             ))}

@@ -57,6 +57,7 @@ export default function CommandPalette() {
       { id: "go-library", label: "Đi tới Thư viện", hint: "Điều hướng", run: () => router.push("/library") },
       { id: "go-plan", label: "Đi tới Lộ trình", hint: "Điều hướng", run: () => router.push("/plan") },
       { id: "go-next", label: "Đi tới Next Up", hint: "Điều hướng", run: () => router.push("/next") },
+      { id: "go-review", label: "Đi tới Ôn tập", hint: "Điều hướng", run: () => router.push("/review") },
       { id: "go-progress", label: "Đi tới Tiến độ", hint: "Điều hướng", run: () => router.push("/progress") },
       { id: "go-settings", label: "Mở Cài đặt", hint: "Điều hướng", run: () => router.push("/settings") },
       {
