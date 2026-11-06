@@ -5,8 +5,14 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Material, type MaterialType } from "@/lib/db";
 import { deleteMaterial, loadDemos } from "@/lib/materials";
 import AddMaterialForm from "@/components/AddMaterialForm";
+import { Button, PageHeader } from "@/components/ui";
 
 const TYPE_LABEL: Record<MaterialType, string> = { note: "Ghi chú", link: "Link", pdf: "PDF" };
+const BADGE: Record<MaterialType, string> = {
+  note: "bg-sky text-ink",
+  link: "bg-amber-retro text-ink",
+  pdf: "bg-navy text-white",
+};
 const TYPE_FILTERS: { key: "all" | MaterialType; label: string }[] = [
   { key: "all", label: "Tất cả" },
   { key: "note", label: "Ghi chú" },
@@ -20,6 +26,11 @@ function openPdf(m: Material) {
   window.open(objectUrl, "_blank");
   setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
+
+const chip = (active: boolean) =>
+  `rounded-full border-2 border-ink px-3 py-1 text-xs font-semibold transition-colors ${
+    active ? "bg-ink text-white" : "bg-white text-ink hover:bg-sky/40"
+  }`;
 
 export default function LibraryPage() {
   const materials = useLiveQuery(() => db.materials.orderBy("createdAt").reverse().toArray(), []);
@@ -59,92 +70,95 @@ export default function LibraryPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-bold">Thư viện</h1>
+      <PageHeader
+        title="Thư viện"
+        subtitle="Lưu tài liệu của bạn, Luna sẽ chia chúng thành các bước nhỏ."
+        action={
+          !hasDemo ? (
+            <Button variant="amber" onClick={onLoadDemos}>
+              Nạp tài liệu mẫu
+            </Button>
+          ) : undefined
+        }
+      />
+      {demoMsg && <p className="-mt-4 mb-6 text-sm text-neutral-600">{demoMsg}</p>}
 
-      <AddMaterialForm />
+      <div className="grid items-start gap-8 lg:grid-cols-[340px_1fr]">
+        <aside className="lg:sticky lg:top-6">
+          <AddMaterialForm />
+        </aside>
 
-      {!hasDemo && (
-        <div className="mb-4">
-          <button onClick={onLoadDemos} className="rounded border border-indigo-600 px-3 py-1.5 text-sm text-indigo-600">
-            Nạp tài liệu mẫu
-          </button>
-        </div>
-      )}
-      {demoMsg && <p className="mb-4 text-sm text-neutral-600">{demoMsg}</p>}
+        <section>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {TYPE_FILTERS.map((f) => (
+              <button key={f.key} onClick={() => setTypeFilter(f.key)} className={chip(typeFilter === f.key)}>
+                {f.label}
+              </button>
+            ))}
+            {allTags.map((t) => (
+              <button
+                key={t}
+                onClick={() => setTagFilter(tagFilter === t ? null : t)}
+                className={`rounded-full border-2 px-2.5 py-1 text-xs transition-colors ${
+                  tagFilter === t
+                    ? "border-ink bg-amber-retro text-ink"
+                    : "border-slate-blue bg-white text-neutral-600 hover:border-ink"
+                }`}
+              >
+                #{t}
+              </button>
+            ))}
+          </div>
 
-      <div className="mb-2 flex flex-wrap gap-1">
-        {TYPE_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setTypeFilter(f.key)}
-            className={`rounded-full px-3 py-1 text-xs ${
-              typeFilter === f.key ? "bg-indigo-600 text-white" : "bg-neutral-200 text-neutral-700"
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+          {materials === undefined ? (
+            <p className="text-neutral-500">Đang tải...</p>
+          ) : visible.length === 0 ? (
+            <p className="text-neutral-500">
+              {materials.length === 0 ? "Chưa có tài liệu nào. Thêm ở khung bên trái." : "Không có tài liệu khớp bộ lọc."}
+            </p>
+          ) : (
+            <ul className="grid gap-4 sm:grid-cols-2">
+              {visible.map((m) => (
+                <li key={m.id} className="flex flex-col rounded-lg border-2 border-ink bg-white p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className={`rounded-full border-2 border-ink px-2 py-0.5 text-xs font-semibold ${BADGE[m.type]}`}>
+                        {TYPE_LABEL[m.type]}
+                      </span>
+                      {m.isDemo && <span className="text-xs text-neutral-500">Tài liệu mẫu</span>}
+                    </div>
+                    <button onClick={() => onDelete(m)} className="text-xs font-semibold text-red-700 hover:underline">
+                      Xóa
+                    </button>
+                  </div>
+                  <p className="mt-3 font-display text-xl uppercase leading-tight">{m.title}</p>
+                  {m.type === "note" && m.content && (
+                    <p className="mt-2 line-clamp-2 text-sm text-neutral-700">{m.content}</p>
+                  )}
+                  {m.type === "link" && m.url && (
+                    <a
+                      href={m.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 block truncate text-sm font-semibold text-cobalt underline"
+                    >
+                      {m.url}
+                    </a>
+                  )}
+                  {m.type === "pdf" && (
+                    <button onClick={() => openPdf(m)} className="mt-2 self-start text-sm font-semibold text-cobalt underline">
+                      Mở PDF
+                    </button>
+                  )}
+                  {m.tags.length > 0 && (
+                    <p className="mt-auto pt-3 text-xs text-neutral-500">{m.tags.map((t) => `#${t}`).join(" ")}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
-
-      {allTags.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-1">
-          {allTags.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTagFilter(tagFilter === t ? null : t)}
-              className={`rounded-full border px-2 py-0.5 text-xs ${
-                tagFilter === t ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-neutral-300 text-neutral-600"
-              }`}
-            >
-              #{t}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {materials === undefined ? (
-        <p className="text-neutral-500">Đang tải...</p>
-      ) : visible.length === 0 ? (
-        <p className="text-neutral-500">{materials.length === 0 ? "Chưa có tài liệu nào." : "Không có tài liệu khớp bộ lọc."}</p>
-      ) : (
-        <ul className="space-y-2">
-          {visible.map((m) => (
-            <li key={m.id} className="rounded border border-neutral-200 bg-white p-3">
-              <div className="flex items-start justify-between gap-2">
-                <p className="font-medium">{m.title}</p>
-                <button onClick={() => onDelete(m)} className="text-xs text-red-600">
-                  Xóa
-                </button>
-              </div>
-              <p className="text-xs text-neutral-500">
-                {TYPE_LABEL[m.type]}
-                {m.isDemo && <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">Tài liệu mẫu</span>}
-              </p>
-              {m.type === "note" && m.content && (
-                <p className="mt-1 line-clamp-2 text-sm text-neutral-700">{m.content}</p>
-              )}
-              {m.type === "link" && m.url && (
-                <a
-                  href={m.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 block truncate text-sm text-indigo-600 underline"
-                >
-                  {m.url}
-                </a>
-              )}
-              {m.type === "pdf" && (
-                <button onClick={() => openPdf(m)} className="mt-1 text-sm text-indigo-600 underline">
-                  Mở PDF
-                </button>
-              )}
-              {m.tags.length > 0 && (
-                <p className="mt-1 text-xs text-neutral-500">{m.tags.map((t) => `#${t}`).join(" ")}</p>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

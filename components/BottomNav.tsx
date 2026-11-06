@@ -12,25 +12,39 @@ const tabs = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const index = tabs.findIndex((t) => pathname.startsWith(t.href));
+
   return (
-    <nav className="fixed inset-x-0 bottom-0 border-t border-neutral-200 bg-white">
-      <ul className="mx-auto flex max-w-md">
-        {tabs.map((t) => {
-          const active = pathname.startsWith(t.href);
-          return (
-            <li key={t.href} className="flex-1">
+    <nav
+      aria-label="Điều hướng chính"
+      className="fixed inset-x-0 bottom-0 z-10 border-t-2 border-ink bg-white pb-[env(safe-area-inset-bottom)]"
+    >
+      <div className="relative mx-auto max-w-md">
+        {index >= 0 && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-1.5 left-0 w-1/4 px-1 transition-transform duration-300 ease-out"
+            style={{ transform: `translateX(${index * 100}%)` }}
+          >
+            <span className="block h-full rounded-full border-2 border-ink bg-cobalt" />
+          </div>
+        )}
+        <ul className="relative z-10 grid grid-cols-4">
+          {tabs.map((t, i) => (
+            <li key={t.href}>
               <Link
                 href={t.href}
-                className={`block py-3 text-center text-sm ${
-                  active ? "font-semibold text-indigo-600" : "text-neutral-500"
+                aria-current={i === index ? "page" : undefined}
+                className={`block py-3 text-center font-display text-sm uppercase tracking-wide transition-colors ${
+                  i === index ? "text-white" : "text-ink"
                 }`}
               >
                 {t.label}
               </Link>
             </li>
-          );
-        })}
-      </ul>
+          ))}
+        </ul>
+      </div>
     </nav>
   );
 }

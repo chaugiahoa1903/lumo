@@ -1,11 +1,138 @@
 @import "tailwindcss";
 
+@theme static {
+  --color-ink: #0e0e0e;
+  --color-cobalt: #0047ab;
+  --color-navy: #000080;
+  --color-sky: #82c8e5;
+  --color-slate-blue: #6d8196;
+  --color-amber-retro: #d4a05f;
+
+  /* Ánh xạ bảng màu cũ sang bảng mới cho các màn chưa thiết kế lại */
+  --color-indigo-50: #e6eefa;
+  --color-indigo-600: #0047ab;
+  --color-indigo-700: #000080;
+  --color-neutral-50: #f3f7fa;
+  --color-neutral-100: #e6eef4;
+  --color-neutral-200: #c5d6e2;
+  --color-neutral-300: #0e0e0e;
+  --color-neutral-500: #5b6b7a;
+  --color-neutral-600: #3f4c59;
+  --color-neutral-700: #26303a;
+}
+
 :root {
   color-scheme: light;
 }
 
+html {
+  background: var(--color-cobalt);
+}
+
 body {
-  background: #fafafa;
-  color: #171717;
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-cobalt);
+  color: var(--color-ink);
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-weight: 400;
+}
+
+.font-wordmark {
+  font-family: var(--font-bowlby), Impact, sans-serif;
+  font-weight: 400;
+}
+
+h1,
+h2 {
+  font-family: var(--font-anton), Impact, sans-serif;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+h1 {
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+h2 {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.page-title {
+  font-size: clamp(2.25rem, 4vw, 3.25rem);
+  line-height: 1;
+}
+
+/* Caro trắng đen: chỉ dùng một dải ở mép trên khung nội dung */
+.checker {
+  height: 16px;
+  background-color: #ffffff;
+  background-image: conic-gradient(var(--color-ink) 25%, #ffffff 0 50%, var(--color-ink) 0 75%, #ffffff 0);
+  background-size: 16px 16px;
+  border-bottom: 2px solid var(--color-ink);
+}
+
+/* Nút nhấn lún vào bóng cứng */
+.btn-press,
+[class~="bg-indigo-600"][class~="text-white"]:not([class~="rounded-full"]) {
+  border: 2px solid var(--color-ink);
+  box-shadow: 3px 3px 0 var(--color-ink);
+  transition: transform 0.08s ease-out, box-shadow 0.08s ease-out;
+}
+
+.btn-press:active:not(:disabled),
+[class~="bg-indigo-600"][class~="text-white"]:not([class~="rounded-full"]):active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--color-ink);
+}
+
+.btn-press:disabled,
+[class~="bg-indigo-600"][class~="text-white"]:not([class~="rounded-full"]):disabled {
+  box-shadow: none;
+}
+
+/* Cầu nối tạm cho Lộ trình: thẻ cũ có viền đen phẳng */
+[class~="bg-white"][class~="border"] {
+  border: 2px solid var(--color-ink);
+  border-radius: 0.5rem;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.page-enter {
+  animation: rise 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
