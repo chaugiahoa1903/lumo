@@ -3,7 +3,9 @@ import { Anton, Bowlby_One, Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
-import Sidebar from "@/components/Sidebar";
+import TopNav from "@/components/TopNav";
+import Shell from "@/components/Shell";
+import Starfield from "@/components/Starfield";
 import PageNav from "@/components/PageNav";
 import SettingsApplier from "@/components/SettingsApplier";
 import CommandPalette from "@/components/CommandPalette";
@@ -35,21 +37,15 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi" className={`${anton.variable} ${bowlby.variable} ${body.variable}`}>
-      <body className="bg-cobalt text-ink antialiased">
+      <body className="text-ink antialiased">
         <ToastProvider>
           <SettingsApplier />
-          <Sidebar />
-          <div className="md:pl-[240px]">
-            <div className="md:hidden">
-              <AppHeader />
-            </div>
-            <div className="md:py-4 md:pr-4">
-              <div className="min-h-screen overflow-hidden bg-white md:min-h-[calc(100vh-2rem)] md:rounded-2xl md:border-2 md:border-ink">
-                <div className="checker" aria-hidden />
-                <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-10 md:pb-28 md:pt-8">{children}</main>
-              </div>
-            </div>
+          <Starfield />
+          <TopNav />
+          <div className="relative z-20 md:hidden">
+            <AppHeader />
           </div>
+          <Shell>{children}</Shell>
           <PageNav />
           <div className="md:hidden">
             <BottomNav />

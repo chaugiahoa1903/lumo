@@ -50,7 +50,7 @@ function ToStart() {
 export default function PageNav() {
   const pathname = usePathname();
   const i = ORDER.findIndex((s) => pathname.startsWith(s.href));
-  if (i < 0) return null;
+  if (i < 0 || pathname.startsWith("/next")) return null;
   const first = ORDER[0];
   const prev = ORDER[i - 1];
   const next = ORDER[i + 1];
