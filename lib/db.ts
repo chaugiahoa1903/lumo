@@ -51,12 +51,17 @@ export interface Task {
   keywords?: string[];
   difficulty?: number;
   completedAt?: number;
+  actualSeconds?: number;
+  outcome?: "again" | "good";
 }
 
 export interface Session {
   id: number;
   startedAt: number;
   endedAt?: number;
+  lastActiveAt?: number;
+  taskCount?: number;
+  activeSeconds?: number;
 }
 
 export interface AppEvent {

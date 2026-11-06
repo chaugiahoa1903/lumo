@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { db } from "@/lib/db";
+import { resetProgress } from "@/lib/learning";
 import { resetSettings, useSettings } from "@/lib/settings";
 import { Button, PageHeader, Panel, Toggle } from "@/components/ui";
 
@@ -12,6 +13,12 @@ const select = "rounded-lg border-2 border-ink bg-white px-2 py-1.5 text-sm";
 export default function SettingsPage() {
   const [s, update] = useSettings();
   const [msg, setMsg] = useState("");
+
+  async function onResetProgress() {
+    if (!confirm("Đặt lại tiến độ học? Tài liệu và khóa học vẫn còn, chỉ xóa kết quả làm task, phiên và nhịp học.")) return;
+    await resetProgress();
+    setMsg("Đã đặt lại tiến độ học.");
+  }
 
   async function wipe() {
     if (window.prompt("Gõ XOA để xác nhận xóa toàn bộ dữ liệu trên máy này. Không thể hoàn tác.") !== "XOA") return;
@@ -32,7 +39,7 @@ export default function SettingsPage() {
             <div>
               <p className="font-semibold">Giảm chuyển động</p>
               <p className="text-sm text-neutral-600">
-                Tắt hiệu ứng trượt, trồi và chạy đầy. Lumo cũng tự theo cài đặt giảm chuyển động của Windows.
+                Tắt hiệu ứng trượt, trồi, chạy đầy và pháo giấy. Lumo cũng tự theo cài đặt giảm chuyển động của Windows.
               </p>
             </div>
             <Toggle checked={s.reduceMotion} onChange={(v) => update({ reduceMotion: v })} label="Giảm chuyển động" />
@@ -71,7 +78,8 @@ export default function SettingsPage() {
             </label>
           </div>
           <p className="mt-3 text-xs text-neutral-500">
-            Lumo lưu các giới hạn này, nhưng chỉ áp dụng khi tính năng làm task ra mắt (bước M3).
+            Chạm một trong hai giới hạn, Next Up sẽ hiện màn &quot;Điểm dừng thắng lợi&quot;. Đây là giới hạn mềm: bạn vẫn
+            chọn học thêm được.
           </p>
         </Panel>
 
@@ -81,7 +89,10 @@ export default function SettingsPage() {
             dữ liệu đi đâu. Xóa dữ liệu trình duyệt cũng sẽ làm mất dữ liệu Lumo.
           </p>
           <p className="mt-2 text-xs text-neutral-500">Xuất/nhập JSON để sao lưu: chưa có, dự kiến ở bước M6.</p>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button variant="ghost" onClick={onResetProgress}>
+              Đặt lại tiến độ học
+            </Button>
             <Button variant="ghost" className="text-red-700" onClick={wipe}>
               Xóa toàn bộ dữ liệu
             </Button>

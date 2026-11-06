@@ -203,3 +203,17 @@ html[data-reduce-motion="true"] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+@keyframes burst {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.4) rotate(var(--rot));
+  }
+}
+
+.burst-dot {
+  animation: burst 0.9s ease-out forwards;
+}

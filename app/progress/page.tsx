@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
+import { etaDate, etaDays, formatEtaDate, loadPace, MIN_TASKS_FOR_ETA } from "@/lib/eta";
 import { formatStamp } from "@/lib/text";
 import CountUp from "@/components/CountUp";
 import { Card, PageHeader, Panel, ProgressBar } from "@/components/ui";
@@ -28,12 +29,13 @@ function Stat({
 }
 
 export default function ProgressPage() {
-  const rows = useLiveQuery(async () => {
-    const [courses, tasks] = await Promise.all([
+  const data = useLiveQuery(async () => {
+    const [courses, tasks, paceInfo] = await Promise.all([
       db.courses.orderBy("createdAt").reverse().toArray(),
       db.tasks.toArray(),
+      loadPace(),
     ]);
-    return courses.map((c) => {
+    const rows = courses.map((c) => {
       const ts = tasks.filter((t) => t.courseId === c.id);
       return {
         id: c.id,
@@ -41,17 +43,32 @@ export default function ProgressPage() {
         createdAt: c.createdAt,
         total: ts.length,
         done: ts.filter((t) => t.status === "done").length,
-        remainMin: ts.filter((t) => t.status !== "done" && t.status !== "skipped").reduce((s, t) => s + t.estMinutes, 0),
+        remainMin: ts.filter((t) => t.status === "todo").reduce((s, t) => s + t.estMinutes, 0),
       };
     });
+    const studiedSec = tasks.reduce((s, t) => s + (t.actualSeconds ?? 0), 0);
+    return { rows, pace: paceInfo.pace, count: paceInfo.count, studiedSec };
   }, []);
 
-  if (rows === undefined) return <p className="text-neutral-500">Đang tải...</p>;
+  if (data === undefined) return <p className="text-neutral-500">Đang tải...</p>;
 
+  const { rows, pace, count, studiedSec } = data;
   const total = rows.reduce((s, r) => s + r.total, 0);
   const done = rows.reduce((s, r) => s + r.done, 0);
   const remain = rows.reduce((s, r) => s + r.remainMin, 0);
   const pct = total ? (done / total) * 100 : 0;
+
+  let paceText = `Cần hoàn thành ít nhất ${MIN_TASKS_FOR_ETA} task để tính nhịp học (mới có ${count}).`;
+  if (pace) {
+    const diff = Math.round((pace.ratio - 1) * 100);
+    const cmp =
+      diff > 5
+        ? `Bạn làm chậm hơn ước lượng khoảng ${diff}%.`
+        : diff < -5
+          ? `Bạn làm nhanh hơn ước lượng khoảng ${-diff}%.`
+          : "Bạn làm sát với ước lượng.";
+    paceText = `${pace.tasks} task trong ${pace.days} ngày học, trung bình ${Math.round(pace.minutesPerDay)} phút mỗi ngày học. ${cmp}`;
+  }
 
   return (
     <div>
@@ -60,8 +77,8 @@ export default function ProgressPage() {
       <div className="stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat value={done} label="Task đã xong" tone="amber" />
         <Stat value={total} label="Tổng số task" />
-        <Stat value={remain} suffix="'" label="Phút còn lại" />
-        <Stat value={rows.length} label="Khóa học" />
+        <Stat value={remain} suffix="'" label="Phút còn lại (ước lượng)" />
+        <Stat value={Math.round(studiedSec / 60)} suffix="'" label="Phút đã học (đo thật)" />
       </div>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_340px]">
@@ -80,6 +97,12 @@ export default function ProgressPage() {
                       label={`${r.done}/${r.total} task · còn khoảng ${r.remainMin} phút`}
                     />
                   </div>
+                  {pace && r.remainMin > 0 && (
+                    <p className="mt-1 text-xs font-semibold">
+                      Dự kiến xong: {formatEtaDate(etaDate(etaDays(r.remainMin, pace)))}
+                    </p>
+                  )}
+                  {r.total > 0 && r.remainMin === 0 && <p className="mt-1 text-xs font-semibold">Đã xong mọi task.</p>}
                 </li>
               ))}
             </ul>
@@ -90,9 +113,16 @@ export default function ProgressPage() {
           <Panel title="Tổng quan">
             <ProgressBar value={pct} label={`${Math.round(pct)}% tổng số task`} />
           </Panel>
+          <Panel title="Nhịp học của bạn">
+            <p className="text-sm">{paceText}</p>
+          </Panel>
           <Panel title="Ngày hoàn thành dự kiến" tone="navy">
             <p className="text-sm">
-              Chưa đủ dữ liệu. Lumo sẽ tính từ tốc độ học thật của bạn sau khi bạn hoàn thành một số task.
+              {remain <= 0
+                ? "Không còn task nào chờ làm."
+                : pace
+                  ? `${formatEtaDate(etaDate(etaDays(remain, pace)))} nếu bạn học hết mọi khóa và học đều mỗi ngày như đã học.`
+                  : `Chưa đủ dữ liệu. Lumo cần ít nhất ${MIN_TASKS_FOR_ETA} task bạn đã làm để ước tính, không dùng con số đoán.`}
             </p>
           </Panel>
         </div>
