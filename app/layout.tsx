@@ -5,7 +5,8 @@ import AppHeader from "@/components/AppHeader";
 import BottomNav from "@/components/BottomNav";
 import TopNav from "@/components/TopNav";
 import Shell from "@/components/Shell";
-import Starfield from "@/components/Starfield";
+import Chrome from "@/components/Chrome";
+import GlassBackdrop from "@/components/GlassBackdrop";
 import PageNav from "@/components/PageNav";
 import SettingsApplier from "@/components/SettingsApplier";
 import CommandPalette from "@/components/CommandPalette";
@@ -41,16 +42,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="text-ink antialiased">
         <ToastProvider>
           <SettingsApplier />
-          <Starfield />
-          <TopNav />
-          <div className="relative z-20 md:hidden">
-            <AppHeader />
-          </div>
+          <Chrome>
+            <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
+              <GlassBackdrop />
+            </div>
+          </Chrome>
+          <Chrome>
+            <TopNav />
+          </Chrome>
+          <Chrome>
+            <div className="relative z-20 md:hidden">
+              <AppHeader />
+            </div>
+          </Chrome>
           <Shell>{children}</Shell>
-          <PageNav />
-          <div className="md:hidden">
-            <BottomNav />
-          </div>
+          <Chrome>
+            <PageNav />
+          </Chrome>
+          <Chrome>
+            <div className="md:hidden">
+              <BottomNav />
+            </div>
+          </Chrome>
           <CommandPalette />
           <BadgeWatcher />
           <SoundPill />

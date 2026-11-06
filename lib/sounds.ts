@@ -4,7 +4,17 @@ export interface SoundDef {
   desc: string;
 }
 
+export type MusicKind = "lofi" | "lofi-rain" | "dream";
+const MUSIC_IDS: readonly string[] = ["lofi", "lofi-rain", "dream"];
+
+export function isMusicId(id: string): id is MusicKind {
+  return MUSIC_IDS.includes(id);
+}
+
 export const SOUNDS: SoundDef[] = [
+  { id: "lofi", name: "Lofi chill", desc: "Lofi do Lumo tự sáng tác: piano điện, trống nhẹ" },
+  { id: "lofi-rain", name: "Lofi mưa đêm", desc: "Lofi chill kèm tiếng mưa" },
+  { id: "dream", name: "Ambient mơ màng", desc: "Nền pad êm, không có trống" },
   { id: "brown", name: "Brown noise", desc: "Âm trầm, che bớt tiếng ồn xung quanh" },
   { id: "pink", name: "Pink noise", desc: "Cân bằng, êm tai" },
   { id: "rain", name: "Tiếng mưa", desc: "Mưa đều trên mái" },
@@ -13,7 +23,7 @@ export const SOUNDS: SoundDef[] = [
   { id: "fire", name: "Lửa trại", desc: "Lửa cháy lách tách" },
 ];
 
-export const DEFAULT_SOUND = "brown";
+export const DEFAULT_SOUND = "lofi";
 
 export function soundById(id: string): SoundDef {
   return SOUNDS.find((s) => s.id === id) ?? SOUNDS[0];

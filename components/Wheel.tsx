@@ -1,29 +1,33 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { STEP_DEG, arcPoint, arcRotation, type Side } from "@/lib/wheelGeometry";
 
 export interface WheelItem {
   key: string | number;
   label: string;
 }
 
-const STEP = 52; // px giữa hai mục
+const GAP = 16;
+const VISIBLE = 3;
 
-// Bánh xe chọn kiểu Apple Watch: mục giữa to và đậm, mục xa mờ dần và cong vào tâm.
-// Điều khiển bằng cuộn chuột, kéo, hoặc phím mũi tên khi đang focus.
+// Bánh xe kiểu Apple Watch, các mục xếp trên một cung tròn đồng tâm với đồng hồ.
+// Gốc toạ độ (0, 0) của bánh xe là tâm đồng hồ. Điều khiển bằng cuộn chuột, kéo, hoặc phím mũi tên.
 export default function Wheel({
   items,
   index,
   onChange,
   side,
   label,
+  radius,
   disabled = false,
 }: {
-  items: WheelItem[];
+  items: { key: string | number; label: string }[];
   index: number;
   onChange: (i: number) => void;
-  side: "left" | "right";
+  side: Side;
   label: string;
+  radius: number;
   disabled?: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -67,6 +71,9 @@ export default function Wheel({
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [move, disabled, count]);
+
+  const hitH = 2 * radius * Math.sin((VISIBLE * STEP_DEG * Math.PI) / 180) + 110;
+  const hitLeft = side === "left" ? -radius - 240 : radius - 140;
 
   return (
     <div
@@ -115,59 +122,68 @@ export default function Wheel({
       onPointerLeave={() => {
         dragRef.current = null;
       }}
-      style={{ touchAction: "none" }}
-      className={`relative h-[360px] w-[220px] select-none rounded-xl outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-sky/60 ${
-        disabled ? "opacity-40" : ""
-      }`}
+      style={{ position: "absolute", left: 0, top: 0, width: 0, height: 0, touchAction: "none" }}
+      className={`group outline-none ${disabled ? "opacity-40" : ""}`}
     >
+      {/* vùng nhận cuộn và kéo bao quanh cung */}
+      <div
+        aria-hidden
+        style={{ position: "absolute", left: hitLeft, top: -hitH / 2, width: 360, height: hitH }}
+        className="rounded-[2rem] transition-shadow group-focus-visible:ring-2 group-focus-visible:ring-sky/60"
+      />
+
       {items.map((it, i) => {
         const off = i - index;
         const abs = Math.abs(off);
-        const visible = abs <= 3;
-        const arc = abs * abs * 10;
-        const x = side === "left" ? arc : -arc;
-        const rot = (side === "left" ? 1 : -1) * off * 5;
+        const visible = abs <= VISIBLE;
+        const { x, y } = arcPoint(off, side, radius);
+        const rot = arcRotation(off, side);
         const selected = off === 0;
+        const sz = selected ? 11 : 5;
         return (
-          <button
+          <div
             key={it.key}
-            type="button"
-            role="option"
-            aria-selected={selected}
-            tabIndex={-1}
-            disabled={disabled || !visible}
-            onClick={() => {
-              if (movedRef.current) {
-                movedRef.current = false;
-                return;
-              }
-              if (i !== idxRef.current) {
-                idxRef.current = i;
-                onChange(i);
-              }
-            }}
-            className={`absolute inset-x-0 flex h-9 items-center gap-2 transition-[transform,opacity] duration-300 ease-out ${
-              side === "left" ? "justify-end" : "flex-row-reverse justify-end"
-            }`}
             style={{
-              top: "calc(50% - 18px)",
-              transform: `translate(${x}px, ${off * STEP}px) rotate(${rot}deg)`,
-              opacity: visible ? Math.max(0, 1 - abs * 0.27) : 0,
-              pointerEvents: visible ? "auto" : "none",
+              position: "absolute",
+              left: 0,
+              top: 0,
+              transform: `translate(${x}px, ${y}px) rotate(${rot}deg)`,
+              opacity: visible ? Math.max(0, 1 - abs * 0.25) : 0,
+              pointerEvents: visible && !disabled ? "auto" : "none",
+              transition: "transform 350ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms",
             }}
           >
             <span
-              className={`max-w-[150px] truncate ${
-                selected ? "text-xl font-bold text-white" : "text-[15px] font-medium text-white/60"
+              aria-hidden
+              className={`absolute rounded-full transition-all duration-300 ${
+                selected ? "bg-amber-retro shadow-[0_0_14px_#d4a05f]" : "bg-white/45"
               }`}
+              style={{ left: -sz / 2, top: -sz / 2, width: sz, height: sz }}
+            />
+            <button
+              type="button"
+              role="option"
+              aria-selected={selected}
+              tabIndex={-1}
+              disabled={disabled || !visible}
+              onClick={() => {
+                if (movedRef.current) {
+                  movedRef.current = false;
+                  return;
+                }
+                if (i !== idxRef.current) {
+                  idxRef.current = i;
+                  onChange(i);
+                }
+              }}
+              className={`absolute top-0 -translate-y-1/2 max-w-[190px] truncate whitespace-nowrap px-1 py-1 text-left transition-colors ${
+                selected ? "text-xl font-bold text-white" : "text-[15px] font-medium text-white/70 hover:text-white"
+              }`}
+              style={{ ...(side === "left" ? { right: GAP } : { left: GAP }), textShadow: "0 1px 10px rgba(0,0,0,0.65)" }}
             >
               {it.label}
-            </span>
-            <span
-              aria-hidden
-              className={`h-2.5 w-2.5 shrink-0 rounded-full ${selected ? "bg-amber-retro" : "bg-transparent"}`}
-            />
-          </button>
+            </button>
+          </div>
         );
       })}
     </div>

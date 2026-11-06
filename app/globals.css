@@ -144,7 +144,7 @@ h2 {
 }
 
 .page-enter {
-  animation: rise 0.35s ease-out both;
+  animation: page-in 0.3s ease-out both;
 }
 
 .toast-in {
@@ -277,4 +277,79 @@ body {
 
 .bob {
   animation: bob 6s ease-in-out infinite;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* glass-theme */
+.dial-glow {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 0 calc(70px + var(--pulse, 0) * 90px) calc(14px + var(--pulse, 0) * 30px) rgba(130, 200, 229, calc(0.16 + var(--pulse, 0) * 0.3)),
+    0 0 calc(190px + var(--pulse, 0) * 140px) calc(40px + var(--pulse, 0) * 50px) rgba(90, 160, 255, calc(0.1 + var(--pulse, 0) * 0.22));
+}
+@keyframes eq {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 15px;
+  }
+}
+
+.eq-bar {
+  animation: eq 0.9s ease-in-out infinite;
+}
+@keyframes confetti {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(calc(var(--dx) * 0.7), calc(var(--up) * -1)) rotate(calc(var(--rot) * 0.4)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--fall)) rotate(var(--rot)) scale(1);
+  }
+}
+
+.confetti-piece {
+  animation-name: confetti;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.3, 1);
+  animation-fill-mode: both;
+}
+
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.6);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.12);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  80% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -8px) scale(1);
+  }
+}
+
+.badge-pop {
+  animation: badge-pop 1.7s ease-out both;
 }

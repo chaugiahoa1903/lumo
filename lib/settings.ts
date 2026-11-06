@@ -4,13 +4,14 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 export interface Settings {
   reduceMotion: boolean;
-  sessionMinutes: number; // giới hạn mềm tổng thời gian học mỗi phiên (phút)
+  sessionMinutes: number; // giới hạn mềm tổng thời gian mỗi phiên (phút)
   sessionTasks: number; // giới hạn mềm số task mỗi phiên
   dailyGoalXp: number; // mục tiêu XP mỗi ngày
   focusMinutes: number; // Pomodoro: độ dài một hiệp tập trung
   breakMinutes: number; // Pomodoro: nghỉ ngắn
   longBreakMinutes: number; // Pomodoro: nghỉ dài
   pomoRounds: number; // Pomodoro: số hiệp mỗi vòng
+  autoSound: boolean; // nhạc chạy và dừng theo đồng hồ
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: Settings = {
   breakMinutes: 5,
   longBreakMinutes: 15,
   pomoRounds: 4,
+  autoSound: true,
 };
 export const SETTINGS_KEY = "lumo.settings.v1";
 const EVENT = "lumo-settings";
@@ -45,6 +47,7 @@ function parse(raw: string): Settings {
       breakMinutes: clampInt(p.breakMinutes, 1, 30, d.breakMinutes),
       longBreakMinutes: clampInt(p.longBreakMinutes, 5, 60, d.longBreakMinutes),
       pomoRounds: clampInt(p.pomoRounds, 2, 8, d.pomoRounds),
+      autoSound: p.autoSound !== false,
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -66,6 +69,10 @@ function subscribe(cb: () => void) {
     window.removeEventListener(EVENT, cb);
     window.removeEventListener("storage", cb);
   };
+}
+
+export function readSettings(): Settings {
+  return parse(getRaw());
 }
 
 export function saveSettings(s: Settings) {

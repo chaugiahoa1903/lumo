@@ -1,37 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { activityTimestamps, loadDeck, syncReviews, toCard } from "@/lib/review";
-import { totalXp } from "@/lib/xp";
+import { activityTimestamps, loadDeck, syncReviews } from "@/lib/review";
 import { computeStreak } from "@/lib/streak";
-import { corpusOf, type Card } from "@/lib/quiz";
+import { totalXp } from "@/lib/xp";
 import { formatStamp } from "@/lib/text";
 import CountUp from "@/components/CountUp";
-import ReviewLesson from "@/components/ReviewLesson";
-import { btnCls, Button, PageHeader, Panel } from "@/components/ui";
+import { btnCls, PageHeader, Panel } from "@/components/ui";
 
 const SESSION_SIZE = 8;
 
-interface Mode {
-  cards: Card[];
-  practice: boolean;
-  key: number;
-}
-
-function sample<T>(arr: T[], n: number): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a.slice(0, n);
-}
-
 export default function ReviewPage() {
-  const [mode, setMode] = useState<Mode | null>(null);
-
   useEffect(() => {
     void syncReviews();
   }, []);
@@ -39,36 +20,16 @@ export default function ReviewPage() {
   const data = useLiveQuery(async () => {
     const [deck, xp, stamps] = await Promise.all([loadDeck(), totalXp(), activityTimestamps()]);
     const now = Date.now();
-    const due = deck.filter((d) => d.review.dueAt <= now).sort((a, b) => a.review.dueAt - b.review.dueAt);
+    const due = deck.filter((d) => d.review.dueAt <= now);
     const upcoming = deck
       .filter((d) => d.review.dueAt > now)
       .sort((a, b) => a.review.dueAt - b.review.dueAt)[0];
-    return { deck, due, nextDue: upcoming?.review.dueAt, xp, streak: computeStreak(stamps) };
+    return { deckSize: deck.length, due: due.length, nextDue: upcoming?.review.dueAt, xp, streak: computeStreak(stamps) };
   }, []);
 
   if (data === undefined) return <p className="text-neutral-500">Đang tải...</p>;
 
-  const { deck, due, nextDue, xp, streak } = data;
-
-  if (mode) {
-    const corpus = corpusOf(deck.map(toCard));
-    return (
-      <ReviewLesson
-        key={mode.key}
-        cards={mode.cards}
-        corpus={corpus}
-        practice={mode.practice}
-        onExit={() => setMode(null)}
-      />
-    );
-  }
-
-  function startReview() {
-    setMode({ cards: due.slice(0, SESSION_SIZE).map(toCard), practice: false, key: Date.now() });
-  }
-  function startPractice() {
-    setMode({ cards: sample(deck, SESSION_SIZE).map(toCard), practice: true, key: Date.now() });
-  }
+  const { deckSize, due, nextDue, xp, streak } = data;
 
   return (
     <div>
@@ -76,8 +37,8 @@ export default function ReviewPage() {
 
       <div className="grid items-start gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
-          <Panel title="Bài ôn hôm nay" hint={`${deck.length} thẻ trong bộ ôn`} tone="amber">
-            {deck.length === 0 ? (
+          <Panel title="Bài ôn hôm nay" hint={`${deckSize} thẻ trong bộ ôn`} tone="amber">
+            {deckSize === 0 ? (
               <>
                 <p className="font-display text-3xl uppercase leading-tight">Chưa có thẻ nào để ôn</p>
                 <p className="mt-2 text-sm">
@@ -89,18 +50,20 @@ export default function ReviewPage() {
                   </Link>
                 </div>
               </>
-            ) : due.length > 0 ? (
+            ) : due > 0 ? (
               <>
                 <p className="font-display text-6xl leading-none">
-                  <CountUp value={due.length} />
+                  <CountUp value={due} />
                 </p>
                 <p className="mt-2 font-display text-lg uppercase">thẻ đến hạn ôn</p>
-                <p className="mt-1 text-sm">Mỗi bài tối đa {SESSION_SIZE} thẻ, khoảng vài phút.</p>
+                <p className="mt-1 text-sm">Mỗi bài tối đa {SESSION_SIZE} thẻ, khoảng vài phút, ở chế độ tập trung.</p>
                 <div className="mt-5 flex flex-wrap gap-3">
-                  <Button onClick={startReview}>Bắt đầu ôn</Button>
-                  <Button variant="ghost" onClick={startPractice}>
+                  <Link href="/study/review" className={btnCls("primary")}>
+                    Bắt đầu ôn
+                  </Link>
+                  <Link href="/study/practice" className={btnCls("ghost")}>
                     Luyện tập thêm
-                  </Button>
+                  </Link>
                 </div>
               </>
             ) : (
@@ -108,9 +71,9 @@ export default function ReviewPage() {
                 <p className="font-display text-3xl uppercase leading-tight">Hôm nay chưa có thẻ nào đến hạn</p>
                 {nextDue && <p className="mt-2 text-sm">Thẻ gần nhất đến hạn lúc {formatStamp(nextDue)}.</p>}
                 <div className="mt-5">
-                  <Button variant="ghost" onClick={startPractice}>
+                  <Link href="/study/practice" className={btnCls("ghost")}>
                     Luyện tập thêm
-                  </Button>
+                  </Link>
                 </div>
                 <p className="mt-2 text-xs">Luyện tập thêm không làm thay đổi lịch ôn.</p>
               </>
@@ -155,7 +118,9 @@ export default function ReviewPage() {
             <p className="font-display text-5xl leading-none">
               <CountUp value={xp} />
             </p>
-            <p className="mt-2 text-sm">Task đọc +8 XP, flashcard/nhớ lại +10 XP. Thẻ ôn đúng ngay lần đầu +10 XP, phải hỏi lại +5 XP.</p>
+            <p className="mt-2 text-sm">
+              Task đọc +8 XP, flashcard/nhớ lại +10 XP. Thẻ ôn đúng ngay lần đầu +10 XP, phải hỏi lại +5 XP.
+            </p>
           </Panel>
         </div>
       </div>

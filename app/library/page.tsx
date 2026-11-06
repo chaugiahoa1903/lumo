@@ -129,7 +129,7 @@ export default function LibraryPage() {
       />
 
       <div className="grid items-start gap-6 lg:grid-cols-[360px_1fr]">
-        <Panel title="Thêm tài liệu" hint="Ghi chú, link hoặc PDF" className="lg:sticky lg:top-6">
+        <Panel title="Thêm tài liệu" hint="Ghi chú, link hoặc PDF" className="lg:sticky lg:top-[88px]">
           <AddMaterialForm />
         </Panel>
 

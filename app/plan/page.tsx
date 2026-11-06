@@ -128,7 +128,7 @@ export default function PlanPage() {
           )}
         </Panel>
 
-        <Panel title="Tạo khóa học mới" hint="3 bước, mất vài giây" flush className="lg:sticky lg:top-6">
+        <Panel title="Tạo khóa học mới" hint="3 bước, mất vài giây" flush className="lg:sticky lg:top-[88px]">
           <div className="divide-y-2 divide-neutral-200">
             <div className="p-4">
               <Step n={1} title="Chọn tài liệu" />

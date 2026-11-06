@@ -1,7 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { DEFAULT_SOUND, SOUNDS, clampVolume, nextSoundId, volumeGain } from "./sounds";
+import { DEFAULT_SOUND, SOUNDS, clampVolume, isMusicId, nextSoundId, volumeGain } from "./sounds";
+import { startMusic } from "./lofi";
 
 // Âm thanh nền tự tổng hợp bằng Web Audio API: không tải file, không gọi mạng, không bản quyền.
 
@@ -68,6 +69,7 @@ export function useAmbient(): AmbientState {
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
+let analyser: AnalyserNode | null = null;
 let active: Handle | null = null;
 const buffers = new Map<string, AudioBuffer>();
 
@@ -85,6 +87,9 @@ function getCtx(): AudioContext | null {
     master = ctx.createGain();
     master.gain.value = 0;
     master.connect(ctx.destination);
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    master.connect(analyser);
   }
   return ctx;
 }
@@ -252,7 +257,22 @@ function build(c: AudioContext, out: AudioNode, id: string): Handle {
     };
   };
 
-  switch (id) {
+  if (isMusicId(id)) {
+    const h = startMusic(c, bus, id);
+    return {
+      stop(fade) {
+        h.stop();
+        bus.gain.setTargetAtTime(0, c.currentTime, fade / 4);
+        window.setTimeout(() => {
+          try {
+            bus.disconnect();
+          } catch {
+            /* đã ngắt */
+          }
+        }, fade * 1000 + 300);
+      },
+    };
+  }  switch (id) {
     case "pink":
       chain(loop("pink"), gain(0.7), bus);
       break;
@@ -374,6 +394,59 @@ export function stepSound(dir: 1 | -1) {
   setSound(nextSoundId(state.soundId, dir));
 }
 
+let duckTimer = 0;
+
+// Giảm tạm âm lượng nhạc nền (không dừng) để tiếng chúc mừng nổi lên, rồi trả lại từ từ.
+export function duck(ms: number, factor = 0.3) {
+  if (!ctx || !master) return;
+  master.gain.cancelScheduledValues(ctx.currentTime);
+  master.gain.setTargetAtTime(volumeGain(state.volume) * factor, ctx.currentTime, 0.05);
+  window.clearTimeout(duckTimer);
+  duckTimer = window.setTimeout(() => {
+    if (ctx && master) master.gain.setTargetAtTime(volumeGain(state.volume), ctx.currentTime, 0.4);
+  }, ms);
+}
+
+const PARTIALS: [number, number][] = [
+  [1, 0.2],
+  [2, 0.07],
+  [3.01, 0.03],
+];
+
+// Tiếng "ting" đi lên khi xong việc: hợp âm Đô trưởng sáng, nốt cuối ngân dài. big = đạt mốc module.
+export function celebrate(big = false) {
+  const c = getCtx();
+  if (!c) return;
+  if (c.state === "suspended") void c.resume();
+  duck(big ? 2800 : 1800, 0.3);
+  const t0 = c.currentTime + 0.02;
+  const notes = big ? [1046.5, 1318.5, 1568, 2093, 2637] : [1318.5, 1760, 2093];
+  const gap = big ? 0.1 : 0.085;
+  notes.forEach((f, i) => {
+    const s = t0 + i * gap;
+    const last = i === notes.length - 1;
+    const dec = last ? (big ? 1.9 : 1.3) : 0.45;
+    for (const [mult, vol] of PARTIALS) {
+      const o = c.createOscillator();
+      o.type = "sine";
+      o.frequency.value = f * mult;
+      const g = c.createGain();
+      g.gain.value = 0.0001;
+      o.connect(g);
+      g.connect(c.destination);
+      const peak = vol * (last ? 1.2 : 1);
+      g.gain.setValueAtTime(0.0001, s);
+      g.gain.linearRampToValueAtTime(peak, s + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, s + dec);
+      o.start(s);
+      o.stop(s + dec + 0.05);
+      o.onended = () => {
+        o.disconnect();
+        g.disconnect();
+      };
+    }
+  });
+}
 export function setVolume(v: number) {
   load();
   set({ volume: clampVolume(v) });
@@ -413,4 +486,31 @@ export function chime() {
   });
 }
 
-export const ambient = { play, pause, toggle, setSound, stepSound, setVolume, unlock, chime };
+function makeBuf(n: number) {
+  return new Uint8Array(n);
+}
+let levelData: ReturnType<typeof makeBuf> | null = null;
+let levelBase = 0;
+let levelPulse = 0;
+
+// Độ "giật" của âm nền (0..1): so mức to hiện tại với mức trung bình chậm. Âm đều như brown noise cho giá trị gần 0.
+export function getLevel(): number {
+  if (!analyser || !state.playing) {
+    levelPulse *= 0.9;
+    return levelPulse;
+  }
+  if (!levelData || levelData.length !== analyser.fftSize) levelData = makeBuf(analyser.fftSize);
+  analyser.getByteTimeDomainData(levelData);
+  let sum = 0;
+  for (let i = 0; i < levelData.length; i++) {
+    const v = (levelData[i] - 128) / 128;
+    sum += v * v;
+  }
+  const rms = Math.sqrt(sum / levelData.length);
+  if (levelBase === 0) levelBase = rms;
+  levelBase = levelBase * 0.997 + rms * 0.003;
+  const raw = Math.min(1, Math.max(0, (rms - levelBase) / Math.max(0.0005, levelBase * 0.6)));
+  levelPulse = Math.max(raw, levelPulse * 0.88);
+  return levelPulse;
+}
+export const ambient = { play, pause, toggle, setSound, stepSound, setVolume, unlock, chime, getLevel };

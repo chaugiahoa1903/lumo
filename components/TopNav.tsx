@@ -16,6 +16,7 @@ const ITEMS = [
   { href: "/progress", label: "Tiến độ" },
 ];
 
+// Thanh trên cùng có nền tối đặc: nội dung cuộn qua bị che hẳn, chữ và logo luôn đọc được.
 export default function TopNav() {
   const pathname = usePathname();
   const due = useLiveQuery(() => db.reviews.where("dueAt").belowOrEqual(Date.now()).count(), []);
@@ -26,7 +27,7 @@ export default function TopNav() {
   }, []);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-30 hidden h-[72px] items-center justify-between px-8 md:flex">
+    <header className="fixed inset-x-0 top-0 z-30 hidden h-[72px] items-center justify-between border-b border-white/10 bg-[#050818]/90 px-8 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl md:flex">
       <Link href="/library" className="font-wordmark text-3xl leading-none text-white" aria-label="Lumo, về Thư viện">
         LUMO
       </Link>
@@ -40,7 +41,7 @@ export default function TopNav() {
               href={it.href}
               aria-current={active ? "page" : undefined}
               className={`flex items-center gap-2 text-sm font-medium transition-colors ${
-                active ? "text-white" : "text-white/60 hover:text-white"
+                active ? "text-white" : "text-white/70 hover:text-white"
               }`}
             >
               <span

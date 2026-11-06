@@ -148,7 +148,7 @@ export default function ReviewLesson({
   });
 
   useEffect(() => {
-    const h = (e: KeyboardEvent) => {
+    const h = (e: KeyboardEvent) => { if (document.documentElement.dataset.studyScene === "dial") return;
       if (e.key === "Enter") {
         if (e.repeat) return;
         e.preventDefault();
