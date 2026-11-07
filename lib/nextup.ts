@@ -73,7 +73,7 @@ export function rankTasks(tasks: Task[], ctx: NextUpContext): Ranked[] {
           ? "Task này là mốc: làm xong là chạm mốc."
           : dTask !== null && dTask > 1
             ? `Còn ${dTask} task nữa là tới mốc của module.`
-            : "Module này đang ở sát mốc.";
+            : `Module này chỉ còn ${list.length} task nữa là xong.`;
 
       const text: Record<PartKey, string> = {
         proximity: proximityText,
@@ -81,9 +81,16 @@ export function rankTasks(tasks: Task[], ctx: NextUpContext): Ranked[] {
         fit: `Vừa với ${Math.round(ctx.remainingMinutes)} phút còn lại của phiên (task ${task.estMinutes} phút).`,
         variety: "Khác dạng với task bạn vừa làm.",
       };
+      // Chỉ nêu lý do khi câu đó đúng với tình huống hiện tại (điểm cao chưa đủ để câu chữ đúng).
+      const holds: Record<PartKey, boolean> = {
+        proximity: true,
+        forgetting: due > 0,
+        fit: task.estMinutes <= ctx.remainingMinutes,
+        variety: ctx.recentTypes.length > 0,
+      };
       const reasons = (Object.keys(WEIGHTS) as PartKey[])
         .map((k) => ({ k, c: WEIGHTS[k] * parts[k] }))
-        .filter((x) => x.c >= REASON_MIN)
+        .filter((x) => x.c >= REASON_MIN && holds[x.k])
         .sort((a, b) => b.c - a.c)
         .slice(0, 2)
         .map((x) => text[x.k]);
