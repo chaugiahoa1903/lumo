@@ -8,6 +8,7 @@ import { db, type Course, type Module, type Session, type Task, type TaskType } 
 import { isSessionActive, skipTask } from "@/lib/learning";
 import { etaDate, etaDays, formatEtaDate, loadPace, MIN_TASKS_FOR_ETA, type Pace } from "@/lib/eta";
 import { pickSelected, queueFor, upcomingOf } from "@/lib/focus";
+import { rankTasks, WEIGHTS, type PartKey } from "@/lib/nextup";
 import type { PomoConfig } from "@/lib/pomodoro";
 import { STUDY_KEYS, ssSet } from "@/lib/studyflow";
 import { useSettings } from "@/lib/settings";
@@ -16,6 +17,7 @@ import { useToast } from "@/components/Toast";
 import PomoSetup from "@/components/PomoSetup";
 import QuestStrip from "@/components/QuestStrip";
 import { btnCls, Button, PageHeader, Panel, ProgressBar } from "@/components/ui";
+import ScrollArea from "@/components/ScrollArea";
 
 const TYPE_LABEL: Record<TaskType, string> = { read: "Đọc", flashcard: "Flashcard", recall: "Nhớ lại" };
 const TYPE_BADGE: Record<TaskType, string> = { read: "bg-sky", flashcard: "bg-amber-retro", recall: "bg-white" };
@@ -59,6 +61,28 @@ export default function NextPage() {
       db.modules.where("courseId").equals(course.id).sortBy("order"),
     ]);
     return { course, tasks, modules, session, pace: paceInfo.pace, paceCount: paceInfo.count, due };
+  }, []);
+
+  const rankInfo = useLiveQuery(async () => {
+    const dueByModule: Record<number, number> = {};
+    const recentTypes: TaskType[] = [];
+    const c = await db.courses.orderBy("createdAt").last();
+    if (!c) return { dueByModule, recentTypes };
+    const [allTasks, dueReviews] = await Promise.all([
+      db.tasks.where("courseId").equals(c.id).toArray(),
+      db.reviews.where("dueAt").belowOrEqual(Date.now()).toArray(),
+    ]);
+    const moduleOf = new Map(allTasks.map((t) => [t.id, t.moduleId]));
+    for (const r of dueReviews) {
+      const m = moduleOf.get(r.taskId);
+      if (m !== undefined) dueByModule[m] = (dueByModule[m] ?? 0) + 1;
+    }
+    allTasks
+      .filter((t) => t.status === "done" && t.completedAt)
+      .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0))
+      .slice(0, 2)
+      .forEach((t) => recentTypes.push(t.type));
+    return { dueByModule, recentTypes };
   }, []);
 
   if (view === undefined) return <p className="text-neutral-500">Đang tải...</p>;
@@ -105,7 +129,15 @@ export default function NextPage() {
   const focusMod = moduleId !== null && modules.some((m) => m.id === moduleId) ? moduleId : null;
   let queue = queueFor(tasks, focusMod);
   if (queue.length === 0 && focusMod !== null) queue = queueFor(tasks, null);
-  const current = pickSelected(queue, selectedId);
+  const remainingMinutes = Math.max(0, settings.sessionMinutes - (session?.activeSeconds ?? 0) / 60);
+  const ranked = rankTasks(queue, {
+    remainingMinutes,
+    recentTypes: rankInfo?.recentTypes ?? [],
+    dueByModule: rankInfo?.dueByModule ?? {},
+  });
+  const manual = queue.find((t) => t.id === selectedId);
+  const current = manual ?? ranked[0]?.task ?? pickSelected(queue, selectedId);
+  const currentRank = manual ? undefined : ranked.find((r) => r.task.id === current?.id);
   const todoAll = tasks.filter((t) => t.status === "todo");
   const total = tasks.length;
   const done = tasks.filter((t) => t.status === "done").length;
@@ -145,18 +177,22 @@ export default function NextPage() {
         <div className="p-4">
           <ProgressBar value={pct} label={`${done}/${total} task đã xong`} />
         </div>
-        <ul className="divide-y-2 divide-neutral-200 border-t-2 border-neutral-200">
+        <div className="border-t-2 border-neutral-200">
+          <ScrollArea label="Tiến độ từng module" maxHeight="min(44vh, 400px)" focusKey={current?.moduleId ?? null}>
+        <ul className="divide-y-2 divide-neutral-200">
           {modules.map((m) => {
             const ts = tasks.filter((t) => t.moduleId === m.id);
             const d = ts.filter((t) => t.status === "done").length;
             return (
-              <li key={m.id} className="p-4">
+              <li key={m.id} data-current={m.id === current?.moduleId ? "true" : undefined} className="p-4">
                 <p className="truncate text-sm font-semibold">{m.title}</p>
                 <ProgressBar value={ts.length ? (d / ts.length) * 100 : 0} label={`${d}/${ts.length} task`} />
               </li>
             );
           })}
         </ul>
+          </ScrollArea>
+        </div>
       </Panel>
 
       {reviewPanel}
@@ -301,11 +337,31 @@ export default function NextPage() {
               Vì sao Luna chọn task này?
             </summary>
             <div className="border-t-2 border-ink p-4 text-sm text-neutral-700">
-              <p>
-                Hiện Luna chọn task đầu tiên chưa làm theo thứ tự khóa học (bạn đổi bằng cách chọn module hoặc bấm task
-                trong hàng đợi). Công thức chấm điểm (độ gần mốc, đa dạng loại task, độ quên, thời lượng còn lại) sẽ có ở
-                bước sau.
-              </p>
+              {currentRank ? (
+                <>
+                  {currentRank.reasons.length > 0 ? (
+                    <ul className="list-disc space-y-1 pl-5">
+                      {currentRank.reasons.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>Không có yếu tố nào nổi trội; Luna giữ thứ tự khóa học.</p>
+                  )}
+                  <p className="mt-3 text-xs text-neutral-500">
+                    Điểm {currentRank.score.toFixed(2)} ={" "}
+                    {(Object.keys(WEIGHTS) as PartKey[])
+                      .map(
+                        (k) =>
+                          `${{ proximity: "gần mốc", forgetting: "độ quên", fit: "vừa thời lượng", variety: "đa dạng" }[k]} ${currentRank.parts[k].toFixed(2)}×${WEIGHTS[k]}`,
+                      )
+                      .join(" + ")}
+                    . Trọng số là heuristic ban đầu, chưa tối ưu từ dữ liệu.
+                  </p>
+                </>
+              ) : (
+                <p>Bạn đang chọn task này thủ công, nên Luna không chấm điểm. Bỏ chọn bằng cách đổi module để Luna chọn lại.</p>
+              )}
               {current.reason && <p className="mt-2">Cách chia task này: {current.reason}</p>}
             </div>
           </details>

@@ -7,6 +7,7 @@ import { formatStamp } from "@/lib/text";
 import CountUp from "@/components/CountUp";
 import ConquestMap from "@/components/ConquestMap";
 import BadgeGrid from "@/components/BadgeGrid";
+import ScrollArea from "@/components/ScrollArea";
 import { Card, PageHeader, Panel, ProgressBar } from "@/components/ui";
 
 function Stat({
@@ -85,7 +86,7 @@ export default function ProgressPage() {
 
       <div className="mt-6 space-y-6">
         <ConquestMap />
-        <BadgeGrid />
+        <BadgeGrid recent={3} />
       </div>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[1fr_340px]">
@@ -93,6 +94,7 @@ export default function ProgressPage() {
           {rows.length === 0 ? (
             <p className="p-6 text-center text-neutral-600">Chưa có khóa học nào.</p>
           ) : (
+            <ScrollArea label="Danh sách khóa học" maxHeight={420}>
             <ul className="stagger divide-y-2 divide-neutral-200">
               {rows.map((r) => (
                 <li key={r.id} className="p-4">
@@ -113,6 +115,7 @@ export default function ProgressPage() {
                 </li>
               ))}
             </ul>
+            </ScrollArea>
           )}
         </Panel>
 

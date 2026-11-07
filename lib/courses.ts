@@ -7,14 +7,14 @@ export async function createCourseFromMaterial(
 ): Promise<{ courseId: number; stats: SplitResult["stats"] }> {
   const m = await db.materials.get(materialId);
   if (!m) throw new Error("Không tìm thấy tài liệu.");
-  if (m.type !== "note") {
-    throw new Error("Hiện Luna mới chia được ghi chú. Link và PDF cần trích nội dung trước (làm ở bước sau).");
+  if (m.type === "link") {
+    throw new Error("Hiện Luna chưa chia được link. Hãy dùng ghi chú hoặc PDF có chữ chọn được.");
   }
   const text = (m.content ?? "").trim();
   if (!text) throw new Error("Ghi chú đang trống, chưa có gì để chia.");
 
   const wpm = Math.min(300, Math.max(60, Math.round(wordsPerMinute) || 100));
-  const res = splitText(text, { wordsPerMinute: wpm });
+  const res = splitText(text, { wordsPerMinute: wpm, structured: m.type === "pdf", moduleBy: "chapter", choiceCards: true });
   if (res.modules.length === 0) throw new Error("Luna không tách được nội dung nào.");
 
   const courseId = await db.transaction("rw", [db.courses, db.modules, db.tasks], async () => {
@@ -44,6 +44,8 @@ export async function createCourseFromMaterial(
           body: t.body,
           answer: t.answer,
           keywords: t.keywords,
+          options: t.options,
+          correct: t.correct,
           difficulty: t.difficulty,
         });
       }

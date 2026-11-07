@@ -188,7 +188,7 @@ export default function PomoStage(p: Props) {
       </div>
 
       {/* Tâm đồng hồ: vòng tròn, hai bánh xe và đồng hồ cùng nằm quanh điểm này */}
-      <div className="absolute left-1/2 z-10" style={{ top: "44%" }}>
+      <div className="absolute left-1/2 z-10" style={{ top: "40%" }}>
         <div aria-hidden className="pointer-events-none hidden lg:block">
           <div
             className="absolute rounded-full border border-white/25"

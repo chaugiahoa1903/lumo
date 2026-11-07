@@ -1,5 +1,7 @@
 "use client";
 
+import { useDialog } from "@/components/Dialog";
+
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Course } from "@/lib/db";
@@ -67,6 +69,8 @@ export default function PlanPage() {
   const existing =
     selectedId !== null ? (courses ?? []).filter((c) => c.materialIds.includes(selectedId)).length : 0;
 
+  const dialog = useDialog();
+
   async function onCreate() {
     if (selectedId === null) return;
     setError("");
@@ -85,7 +89,14 @@ export default function PlanPage() {
   }
 
   async function onDeleteCourse(c: Course) {
-    if (confirm(`Xóa khóa học "${c.title}"? Tài liệu gốc trong Thư viện vẫn còn.`)) {
+    if (
+      await dialog.confirm({
+        title: "Xóa khóa học?",
+        message: `"${c.title}" sẽ bị xóa cùng module và task. Tài liệu gốc trong Thư viện vẫn còn.`,
+        confirmLabel: "Xóa khóa học",
+        danger: true,
+      })
+    ) {
       await deleteCourse(c.id);
       toast(`Đã xóa khóa học "${c.title}".`);
     }

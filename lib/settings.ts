@@ -12,6 +12,7 @@ export interface Settings {
   longBreakMinutes: number; // Pomodoro: nghỉ dài
   pomoRounds: number; // Pomodoro: số hiệp mỗi vòng
   autoSound: boolean; // nhạc chạy và dừng theo đồng hồ
+  checkpointEvery: number; // chúc mừng và hiện bảng "Xong!" sau mỗi N task (6..8)
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -24,6 +25,7 @@ export const DEFAULT_SETTINGS: Settings = {
   longBreakMinutes: 15,
   pomoRounds: 4,
   autoSound: true,
+  checkpointEvery: 7,
 };
 export const SETTINGS_KEY = "lumo.settings.v1";
 const EVENT = "lumo-settings";
@@ -48,6 +50,7 @@ function parse(raw: string): Settings {
       longBreakMinutes: clampInt(p.longBreakMinutes, 5, 60, d.longBreakMinutes),
       pomoRounds: clampInt(p.pomoRounds, 2, 8, d.pomoRounds),
       autoSound: p.autoSound !== false,
+      checkpointEvery: clampInt(p.checkpointEvery, 6, 8, d.checkpointEvery),
     };
   } catch {
     return DEFAULT_SETTINGS;

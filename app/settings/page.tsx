@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { resetProgress } from "@/lib/learning";
 import { resetSettings, useSettings } from "@/lib/settings";
 import { Button, PageHeader, Panel, Toggle } from "@/components/ui";
+import { useDialog } from "@/components/Dialog";
 
 const MINUTES = [10, 15, 20, 25, 30, 45];
 const TASKS = [4, 6, 8, 10, 12];
@@ -13,15 +14,31 @@ const select = "rounded-lg border-2 border-ink bg-white px-2 py-1.5 text-sm";
 export default function SettingsPage() {
   const [s, update] = useSettings();
   const [msg, setMsg] = useState("");
+  const dialog = useDialog();
 
   async function onResetProgress() {
-    if (!confirm("Đặt lại tiến độ học? Tài liệu và khóa học vẫn còn, chỉ xóa kết quả làm task, phiên và nhịp học.")) return;
+    const yes = await dialog.confirm({
+      title: "Đặt lại tiến độ học?",
+      message: "Tài liệu và khóa học vẫn còn. Chỉ xóa kết quả làm task, phiên và nhịp học.",
+      confirmLabel: "Đặt lại",
+      danger: true,
+    });
+    if (!yes) return;
     await resetProgress();
     setMsg("Đã đặt lại tiến độ học.");
   }
 
   async function wipe() {
-    if (window.prompt("Gõ XOA để xác nhận xóa toàn bộ dữ liệu trên máy này. Không thể hoàn tác.") !== "XOA") return;
+    const typed = await dialog.prompt({
+      title: "Xóa toàn bộ dữ liệu?",
+      message: "Mọi tài liệu, khóa học và tiến độ trên máy này sẽ mất. Không thể hoàn tác.",
+      label: "Gõ XOA để xác nhận",
+      placeholder: "XOA",
+      expect: "XOA",
+      confirmLabel: "Xóa hết",
+      danger: true,
+    });
+    if (typed !== "XOA") return;
     await db.transaction("rw", db.tables, async () => {
       await Promise.all(db.tables.map((t) => t.clear()));
     });
@@ -80,6 +97,27 @@ export default function SettingsPage() {
           <p className="mt-3 text-xs text-neutral-500">
             Chạm một trong hai giới hạn, Next Up sẽ hiện màn &quot;Điểm dừng thắng lợi&quot;. Đây là giới hạn mềm: bạn vẫn
             chọn học thêm được.
+          </p>
+        </Panel>
+
+        <Panel title="Nhịp chúc mừng">
+          <label className="flex items-center justify-between gap-4 text-sm">
+            Chúc mừng sau mỗi
+            <select
+              className={select}
+              value={s.checkpointEvery}
+              onChange={(e) => update({ checkpointEvery: Number(e.target.value) })}
+            >
+              {[6, 7, 8].map((n) => (
+                <option key={n} value={n}>
+                  {n} task
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-3 text-xs text-neutral-500">
+            Giữa các lần chúc mừng, Lumo tự chuyển sang task kế tiếp để không ngắt nhịp học. Xong một module hoặc chạm mốc
+            thì luôn chúc mừng. Hết hiệp Pomodoro hoặc chạm giới hạn phiên thì vẫn dừng như bình thường.
           </p>
         </Panel>
 

@@ -101,7 +101,24 @@ export default function LibraryPage() {
   async function onSplit(m: Material) {
     setSplittingId(m.id);
     try {
-      const { stats } = await createCourseFromMaterial(m.id, 100);
+      let sourceId = m.id;
+      if (m.type === "pdf") {
+        if (!m.blob) throw new Error("Không tìm thấy file PDF.");
+        const { db: database } = await import("@/lib/db");
+        
+        const existing = m.content?.trim() ? m : undefined;
+        if (existing) {
+          sourceId = existing.id;
+        } else {
+          toast("Đang đọc PDF và chuyển thành văn bản...", { ms: 5000 });
+          const { convertPdf } = await import("@/lib/pdfbook");
+          
+          const conv = await convertPdf(m.blob);
+          if (conv.stats.words < 50) throw new Error("PDF gần như không có chữ (có thể là bản scan), Luna chưa chia được.");
+          await database.materials.update(m.id, { content: conv.markdown });
+        }
+      }
+      const { stats } = await createCourseFromMaterial(sourceId, 100);
       toast(`Luna đã chia "${m.title}" thành ${stats.modules} module, ${stats.tasks} task.`, {
         actionLabel: "Xem lộ trình",
         onAction: () => router.push("/plan"),
@@ -212,7 +229,7 @@ export default function LibraryPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-4 sm:flex-col sm:items-stretch sm:gap-2">
-                    {m.type === "note" && (
+                    {(m.type === "note" || m.type === "pdf") && (
                       <Button
                         variant="ghost"
                         className="!px-4 !py-1.5"

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useDialog } from "@/components/Dialog";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Course, type Module, type Session, type Task, type TaskType } from "@/lib/db";
@@ -15,6 +16,7 @@ import { ambient, celebrate } from "@/lib/ambient";
 import { useToast } from "@/components/Toast";
 import CountUp from "@/components/CountUp";
 import Celebrate from "@/components/Celebrate";
+import { isCheckpoint, moduleProgress } from "@/lib/progress";
 import FocusConsole, { Ico, toolBtn } from "@/components/FocusConsole";
 import MiniHud from "@/components/MiniHud";
 import PomoSetup from "@/components/PomoSetup";
@@ -37,6 +39,10 @@ interface Result {
   sessionId: number;
   sessionTasks: number;
   sessionSeconds: number;
+  moduleDone: number;
+  moduleTotal: number;
+  moduleLeft: number;
+  toMilestone: number | null;
 }
 
 function Burst() {
@@ -94,6 +100,7 @@ function StopPanel({
 
 export default function StudyPage() {
   const router = useRouter();
+  const dialog = useDialog();
   const toast = useToast();
   const pomo = usePomo({
     onBlockOver: () => toast("Hết hiệp. Xong task này rồi nghỉ nhé.", { ms: 9000 }),
@@ -107,6 +114,14 @@ export default function StudyPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [booted, setBooted] = useState(false);
   const [revealed, setRevealed] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [picked, setPicked] = useState<number[]>([]);
+  // Mỗi khi sang task mới: ẩn đáp án và xóa ô nhập (tránh lộ đáp án của task trước)
+  useEffect(() => {
+    setRevealed(false);
+    setDraft("");
+    setPicked([]);
+  }, [runningId]);
   const [result, setResult] = useState<Result | null>(null);
   const [barPct, setBarPct] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -189,8 +204,17 @@ export default function StudyPage() {
     if (current) begin(current);
   }
 
-  function onExit() {
-    if (phase === "running" && !window.confirm("Thoát giữa chừng? Task đang làm sẽ không được lưu.")) return;
+  async function onExit() {
+    if (phase === "running") {
+      const leave = await dialog.confirm({
+        title: "Thoát giữa chừng?",
+        message: "Task đang làm sẽ không được lưu.",
+        confirmLabel: "Thoát",
+        cancelLabel: "Ở lại học",
+        danger: true,
+      });
+      if (!leave) return;
+    }
     router.push("/next");
   }
 
@@ -211,6 +235,23 @@ export default function StudyPage() {
       const before = tasks.filter((x) => x.status === "done").length;
       const after = before + 1;
       const mod = modules.find((m) => m.id === t.moduleId);
+      const tasksAfter = tasks.map((x) => (x.id === t.id ? { ...x, status: "done" as const } : x));
+      const mpBefore = moduleProgress(tasks, t.moduleId);
+      const mpAfter = moduleProgress(tasksAfter, t.moduleId);
+      const capNow = r.sessionTasks >= settings.sessionTasks || r.sessionSeconds >= settings.sessionMinutes * 60;
+      const checkpoint = isCheckpoint({
+        sessionTasks: r.sessionTasks,
+        every: settings.checkpointEvery,
+        moduleCompleted: mpAfter.left === 0,
+        milestoneHit: t.isMilestone,
+      });
+      const todoRest = tasks.filter((x) => x.status === "todo" && x.id !== t.id).sort((a, b) => a.order - b.order);
+      const nextQuiet = (moduleId === null ? todoRest : todoRest.filter((x) => x.moduleId === moduleId))[0] ?? todoRest[0];
+      if (!checkpoint && !capNow && !pomo.over && nextQuiet) {
+        toast(`✓ ${mpAfter.done}/${mpAfter.total} trong "${mod?.title ?? "module"}"`, { ms: 1800 });
+        begin(nextQuiet);
+        return;
+      }
       setResult({
         taskId: t.id,
         title: t.title,
@@ -221,13 +262,17 @@ export default function StudyPage() {
         sessionId: r.sessionId,
         sessionTasks: r.sessionTasks,
         sessionSeconds: r.sessionSeconds,
+        moduleDone: mpAfter.done,
+        moduleTotal: mpAfter.total,
+        moduleLeft: mpAfter.left,
+        toMilestone: mpAfter.toMilestone,
       });
       setSelectedId(null);
-      setBarPct(totalTasks ? (before / totalTasks) * 100 : 0);
+      setBarPct(mpBefore.total ? (mpBefore.done / mpBefore.total) * 100 : 0);
       setPhase("feedback");
       celebrate(t.isMilestone);
       setCelebrateKey((k) => k + 1);
-      window.setTimeout(() => setBarPct(totalTasks ? (after / totalTasks) * 100 : 0), 80);
+      window.setTimeout(() => setBarPct(mpAfter.total ? (mpAfter.done / mpAfter.total) * 100 : 0), 80);
     } catch {
       toast("Không lưu được kết quả. Thử lại.");
     } finally {
@@ -361,9 +406,84 @@ export default function StudyPage() {
             ) : (
               <>
                 <p className="text-lg font-semibold">{t.body}</p>
+                {t.options && t.options.length > 0 && (() => {
+                  const correct = t.correct ?? [];
+                  const good = picked.filter((p) => correct.includes(p));
+                  const wrong = picked.filter((p) => !correct.includes(p));
+                  const missed = correct.filter((x) => !picked.includes(x));
+                  const names = (idxs: number[]) => idxs.map((i) => t.options![i]).join(", ");
+                  return (
+                    <div className="mt-3 flex flex-col gap-2">
+                      {correct.length > 1 && !revealed && (
+                        <p className="text-sm text-neutral-500">Chọn {correct.length} đáp án</p>
+                      )}
+                      {t.options.map((opt, i) => {
+                        const isPicked = picked.includes(i);
+                        const isRight = correct.includes(i);
+                        let cls = isPicked ? "bg-sky/40" : "bg-white";
+                        let tag = "";
+                        if (revealed) {
+                          if (isPicked && isRight) {
+                            cls = "bg-[#bbf7d0]";
+                            tag = "Bạn chọn · Đúng";
+                          } else if (isPicked) {
+                            cls = "bg-[#fecaca]";
+                            tag = "Bạn chọn · Sai";
+                          } else if (isRight) {
+                            cls = "border-dashed bg-[#f0fdf4]";
+                            tag = "Đáp án đúng · bạn bỏ sót";
+                          } else {
+                            cls = "bg-white opacity-50";
+                          }
+                        }
+                        return (
+                          <button
+                            key={i}
+                            type="button"
+                            disabled={revealed}
+                            onClick={() =>
+                              setPicked((cur) =>
+                                correct.length > 1 ? (cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i]) : [i],
+                              )
+                            }
+                            className={`flex items-center justify-between gap-3 rounded-lg border-2 border-ink px-4 py-2 text-left text-base font-semibold ${cls}`}
+                          >
+                            <span>{opt}</span>
+                            {tag && <span className="shrink-0 text-xs font-semibold">{tag}</span>}
+                          </button>
+                        );
+                      })}
+                      {revealed && (
+                        <p className="text-sm font-semibold">
+                          {wrong.length === 0 && missed.length === 0
+                            ? "Bạn chọn đúng hết."
+                            : `Đúng ${good.length}/${correct.length}.` +
+                              (wrong.length ? ` Chọn sai: ${names(wrong)}.` : "") +
+                              (missed.length ? ` Bỏ sót: ${names(missed)}.` : "")}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+                {!revealed && !t.options?.length && (
+                  <textarea
+                    autoFocus
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    rows={1}
+                    placeholder={t.type === "recall" ? "Gõ 2–3 từ khóa bạn nhớ rồi bấm Hiện đáp án" : "Điền từ còn thiếu rồi bấm Hiện đáp án"}
+                    className="mt-3 w-full rounded-lg border-2 border-ink bg-white p-3 text-base"
+                  />
+                )}
+                {revealed && draft.trim() && (
+                  <p className="mt-3 rounded-lg border-2 border-ink bg-white p-3 text-sm">
+                    <span className="font-semibold">Bạn viết: </span>
+                    {draft.trim()}
+                  </p>
+                )}
                 {revealed && (
-                  <p className="fade-in mt-4 rounded-lg border-2 border-ink bg-sky/40 p-3 text-sm">
-                    {t.answer || "(Không có đáp án gợi ý cho task này.)"}
+                  <p className="fade-in mt-4 whitespace-pre-wrap rounded-lg border-2 border-ink bg-sky/40 p-3 text-sm">
+                    {(t.options?.length ? (t.answer ?? "").split("\n\n").slice(1).join("\n\n") : t.answer) || "(Không có đáp án gợi ý cho task này.)"}
                   </p>
                 )}
               </>
@@ -375,7 +495,7 @@ export default function StudyPage() {
                 Đã đọc xong
               </Button>
             ) : !revealed ? (
-              <Button onClick={() => setRevealed(true)}>Hiện đáp án</Button>
+              <Button disabled={!!t.options?.length && picked.length === 0} onClick={() => setRevealed(true)}>Hiện đáp án</Button>
             ) : (
               <>
                 <Button disabled={busy} onClick={() => finish(t, "good")}>
@@ -396,13 +516,18 @@ export default function StudyPage() {
   } else if (phase === "feedback" && result) {
     const r = result;
     const nextTask = current && current.id !== r.taskId ? current : undefined;
-    const pctAfter = r.total ? (r.doneAfter / r.total) * 100 : 0;
-    const thr = THRESHOLDS.find((x) => x > pctAfter);
-    const need = thr ? Math.ceil((r.total * thr) / 100) - r.doneAfter : 0;
+    const pctAfter = r.moduleTotal ? (r.moduleDone / r.moduleTotal) * 100 : 0;
+    const modLeftText =
+      r.moduleLeft === 0
+        ? "Bạn đã hoàn thành module này."
+        : r.toMilestone !== null
+          ? `Còn ${r.toMilestone} task nữa là tới mốc của module.`
+          : `Còn ${r.moduleLeft} task nữa là xong module.`;
+    const courseText = `Cả khóa học: ${r.doneAfter}/${r.total} task (${Math.round(r.total ? (r.doneAfter / r.total) * 100 : 0)}%).`;
     const confirmText =
-      pctAfter >= 100
+      r.doneAfter >= r.total
         ? "Bạn đã hoàn thành toàn bộ khóa học."
-        : `Bạn đã hoàn thành ${Math.round(pctAfter)}% – cách mốc ${thr}% chỉ ${need} task.`;
+        : modLeftText;
     const capped = capHit(r.sessionTasks, r.sessionSeconds);
     const blockOver = pomo.over && !capped;
     learn = (
@@ -414,9 +539,10 @@ export default function StudyPage() {
               <CountUp value={Math.round(pctAfter)} suffix="%" />
             </p>
             <div className="mt-3">
-              <ProgressBar value={barPct} label={`${r.doneAfter}/${r.total} task đã xong`} />
+              <ProgressBar value={barPct} label={`${r.moduleDone}/${r.moduleTotal} task · ${r.moduleTitle ?? "module này"}`} />
             </div>
             <p className="mt-3 font-display text-lg uppercase">{confirmText}</p>
+            <p className="mt-2 text-xs">{courseText}</p>
             {r.milestone && r.moduleTitle && (
               <p className="mt-1 text-sm">Bạn vừa hoàn thành module &quot;{r.moduleTitle}&quot;.</p>
             )}

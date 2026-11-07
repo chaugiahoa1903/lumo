@@ -5,7 +5,7 @@ import { formatClock } from "@/lib/focus";
 const SIZE = {
   lg: "w-[300px] lg:w-[320px]",
   md: "w-[230px]",
-  fit: "w-[clamp(210px,38vh,330px)]",
+  fit: "w-[clamp(180px,34vh,330px)]",
 } as const;
 const TEXT = {
   lg: "mt-1 text-7xl",

@@ -1,11 +1,15 @@
 "use client";
 
+import { useDialog } from "@/components/Dialog";
+
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Task, type TaskType } from "@/lib/db";
 import { deleteModule, deleteTask, mergeWithNext, renameModule, renameTask, splitModuleAt } from "@/lib/courses";
 import CountUp from "@/components/CountUp";
 import { ProgressBar } from "@/components/ui";
+import GoalPicker from "@/components/GoalPicker";
+import ScrollArea from "@/components/ScrollArea";
 
 const TYPE_LABEL: Record<TaskType, string> = { read: "Đọc", flashcard: "Flashcard", recall: "Nhớ lại" };
 const miniBtn = "rounded-full border-2 border-ink bg-white px-3 py-1 text-xs font-semibold hover:bg-sky/40";
@@ -24,6 +28,7 @@ export default function CourseView({
   const tasks = useLiveQuery(() => db.tasks.where("courseId").equals(courseId).sortBy("order"), [courseId]);
   const [openMods, setOpenMods] = useState<number[] | null>(null);
   const [openTask, setOpenTask] = useState<number | null>(null);
+  const dialog = useDialog();
 
   if (!course || !modules || !tasks) return <p className="text-neutral-500">Đang tải...</p>;
 
@@ -44,19 +49,46 @@ export default function CourseView({
     setOpenMods(base.includes(id) ? base.filter((x) => x !== id) : [...base, id]);
   }
 
+
   async function onRenameModule(id: number, cur: string) {
-    const v = window.prompt("Tên module mới", cur);
+    const v = await dialog.prompt({
+      title: "Đổi tên module",
+      label: "Tên module mới",
+      defaultValue: cur,
+      confirmLabel: "Lưu",
+    });
     if (v) await renameModule(id, v);
   }
   async function onRenameTask(t: Task) {
-    const v = window.prompt("Tên task mới", t.title);
+    const v = await dialog.prompt({
+      title: "Đổi tên task",
+      label: "Tên task mới",
+      defaultValue: t.title,
+      confirmLabel: "Lưu",
+    });
     if (v) await renameTask(t.id, v);
   }
   async function onDeleteModule(id: number, title: string) {
-    if (confirm(`Xóa module "${title}" và toàn bộ task trong đó?`)) await deleteModule(id);
+    if (
+      await dialog.confirm({
+        title: "Xóa module?",
+        message: `"${title}" và toàn bộ task trong đó sẽ bị xóa.`,
+        confirmLabel: "Xóa module",
+        danger: true,
+      })
+    )
+      await deleteModule(id);
   }
   async function onDeleteTask(t: Task) {
-    if (confirm(`Xóa task "${t.title}"?`)) await deleteTask(t.id);
+    if (
+      await dialog.confirm({
+        title: "Xóa task?",
+        message: `"${t.title}" sẽ bị xóa.`,
+        confirmLabel: "Xóa task",
+        danger: true,
+      })
+    )
+      await deleteTask(t.id);
   }
 
   return (
@@ -93,9 +125,16 @@ export default function CourseView({
         </div>
       </div>
 
+      {modules.length > 0 && (
+        <div className="mb-6">
+          <GoalPicker courseId={courseId} />
+        </div>
+      )}
+
       {modules.length === 0 && <p className="text-neutral-500">Khóa học trống.</p>}
 
-      <div className="stagger space-y-3">
+      <ScrollArea label="Danh sách module" maxHeight="min(72vh, 680px)" className="-mx-1">
+      <div className="stagger space-y-3 px-1 py-1">
         {modules.map((md, mi) => {
           const list = byModule.get(md.id) ?? [];
           const mDone = list.filter((t) => t.status === "done").length;
@@ -205,6 +244,7 @@ export default function CourseView({
           );
         })}
       </div>
+      </ScrollArea>
     </div>
   );
 }

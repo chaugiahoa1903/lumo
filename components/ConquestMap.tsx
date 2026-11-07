@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { loadMastery } from "@/lib/mastery";
+import ScrollArea from "@/components/ScrollArea";
 import { Panel } from "@/components/ui";
 
 function Stars({ n }: { n: number }) {
@@ -47,13 +48,14 @@ export default function ConquestMap() {
 
   return (
     <Panel title="Bản đồ chinh phục" hint={`${course.title} · ${explored}/${mastery.length} chặng đã khám phá`}>
-      <div className="relative pl-14">
+      <ScrollArea label="Bản đồ chinh phục" maxHeight={380} focusKey={currentId ?? null}>
+      <div className="relative pl-14 pr-2">
         <div aria-hidden className="absolute bottom-6 left-3 top-2 w-6 border-x-2 border-ink" style={ROAD_STYLE} />
         <ul className="stagger space-y-4">
           {mastery.map((m, i) => {
             const isCurrent = m.moduleId === currentId;
             return (
-              <li key={m.moduleId} className="relative">
+              <li key={m.moduleId} className="relative" data-current={isCurrent ? "true" : undefined}>
                 <span
                   className={`absolute -left-14 top-3 flex h-12 w-12 items-center justify-center rounded-full border-2 border-ink font-display text-xl ${
                     m.stars >= 3 ? "bg-amber-retro" : m.stars >= 1 ? "bg-cobalt text-white" : "bg-white"
@@ -99,6 +101,7 @@ export default function ConquestMap() {
           </li>
         </ul>
       </div>
+      </ScrollArea>
       <p className="mt-4 text-xs text-neutral-500">
         ★ khám phá: xong mọi task · ★★ nắm chắc: ≥80% thẻ đã được ôn đúng theo lịch · ★★★ thành thạo: ≥80% thẻ ôn đúng
         liên tiếp 2 lần. Sao lấy từ lịch ôn thật nên cần vài ngày, không đạt được trong một buổi.

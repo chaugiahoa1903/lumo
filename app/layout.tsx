@@ -13,6 +13,8 @@ import CommandPalette from "@/components/CommandPalette";
 import BadgeWatcher from "@/components/BadgeWatcher";
 import SoundPill from "@/components/SoundPill";
 import { ToastProvider } from "@/components/Toast";
+import { DialogProvider } from "@/components/Dialog";
+import PageDots from "@/components/PageDots";
 
 const anton = Anton({
   subsets: ["latin", "latin-ext", "vietnamese"],
@@ -41,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="vi" className={`${anton.variable} ${bowlby.variable} ${body.variable}`}>
       <body className="text-ink antialiased">
         <ToastProvider>
+        <DialogProvider>
           <SettingsApplier />
           <Chrome>
             <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
@@ -67,6 +70,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <CommandPalette />
           <BadgeWatcher />
           <SoundPill />
+          <PageDots />
+        </DialogProvider>
         </ToastProvider>
       </body>
     </html>

@@ -49,6 +49,8 @@ export interface Task {
   body?: string;
   answer?: string;
   keywords?: string[];
+  options?: string[]; // lựa chọn của thẻ trắc nghiệm
+  correct?: number[]; // chỉ số đáp án đúng trong options
   difficulty?: number;
   completedAt?: number;
   actualSeconds?: number;

@@ -353,3 +353,7 @@ body {
 .badge-pop {
   animation: badge-pop 1.7s ease-out both;
 }
+
+/* lumo-hide-page-scrollbar: ẩn thanh cuộn của cả trang, PageDots thay thế */
+html { scrollbar-width: none; }
+html::-webkit-scrollbar { display: none; }
