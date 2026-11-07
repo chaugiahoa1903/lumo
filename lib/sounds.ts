@@ -21,6 +21,7 @@ export const SOUNDS: SoundDef[] = [
   { id: "cafe", name: "Quán cafe", desc: "Tiếng xì xào, lách cách ly tách (mô phỏng)" },
   { id: "waves", name: "Sóng biển", desc: "Sóng vỗ nhịp chậm" },
   { id: "fire", name: "Lửa trại", desc: "Lửa cháy lách tách" },
+  { id: "none", name: "Không nhạc", desc: "Chỉ có đồng hồ, không phát âm thanh" },
 ];
 
 export const DEFAULT_SOUND = "lofi";

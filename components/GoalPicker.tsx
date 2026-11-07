@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { pickByMode, rankModulesByGoal, type GoalMode, type GoalModule } from "@/lib/goalfit";
@@ -26,6 +27,7 @@ const seg = (on: boolean) =>
 // "Áp dụng" chỉ đánh dấu task chưa làm: module được chọn -> todo, không chọn -> skipped. Task đã xong giữ nguyên.
 export default function GoalPicker({ courseId }: { courseId: number }) {
   const toast = useToast();
+  const router = useRouter();
   const [target, setTarget] = useState<Target | null>(null);
   const [goal, setGoal] = useState("");
   const [mode, setMode] = useState<GoalMode>("core");
@@ -101,6 +103,7 @@ export default function GoalPicker({ courseId }: { courseId: number }) {
         }
       });
       toast(`Đã chọn ${picks.size}/${modules.length} module. Phần còn lại được bỏ qua, chọn "Học tất cả" để khôi phục.`);
+      router.push("/next");
     } finally {
       setBusy(false);
     }

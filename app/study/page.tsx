@@ -1,5 +1,6 @@
 "use client";
 
+import { planStudy, clampTotal, describePlan, sameConfig } from "@/lib/studyPlan";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDialog } from "@/components/Dialog";
@@ -347,6 +348,22 @@ export default function StudyPage() {
   const capHit = (n: number, sec: number) => n >= settings.sessionTasks || sec >= settings.sessionMinutes * 60;
   const taskSec = Math.max(0, Math.floor((pomo.activeRef.current - taskStartRef.current) / 1000));
   const roundText = `Hiệp ${roundNumber(pomo.roundsDone, cfg.rounds)}/${cfg.rounds}`;
+
+  const studyPlan = planStudy(settings.studyTotalMin);
+  const planText = sameConfig(studyPlan.cfg, cfg)
+    ? describePlan(studyPlan)
+    : `Tùy chỉnh: ${cfg.focusMin}/${cfg.shortBreakMin} phút · ${cfg.rounds} hiệp`;
+  function changeTotal(m: number) {
+    const pl = planStudy(clampTotal(m));
+    pomo.updateSettings({
+      studyTotalMin: pl.totalMin,
+      focusMinutes: pl.cfg.focusMin,
+      breakMinutes: pl.cfg.shortBreakMin,
+      longBreakMinutes: pl.cfg.longBreakMin,
+      pomoRounds: pl.cfg.rounds,
+      sessionMinutes: pl.totalMin,
+    });
+  }
   const prevT = stepTask(queue, current, -1);
   const nextT = stepTask(queue, current, 1);
   const mod = current ? modules.find((m) => m.id === current.moduleId) : undefined;
@@ -611,7 +628,7 @@ export default function StudyPage() {
     : phase === "running"
       ? pomo.ticking
         ? "Tạm dừng"
-        : "Tiếp tục"
+        : "Tiếp tục học"
       : "Bắt đầu học";
 
   const title = pomo.onBreak ? "Đang nghỉ" : current ? current.title : "Đã xong mọi task";
@@ -658,6 +675,9 @@ export default function StudyPage() {
         focusMin={cfg.focusMin}
         focusLocked={phase === "running" || pomo.onBreak}
         onFocusMin={(m) => pomo.updateSettings({ focusMinutes: m })}
+        totalMin={settings.studyTotalMin}
+        onTotalMin={changeTotal}
+        planText={planText}
         onSetup={() => setShowSetup(true)}
         mainIcon={mainIcon}
         mainLabel={mainLabel}

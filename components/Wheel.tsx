@@ -21,6 +21,11 @@ export default function Wheel({
   label,
   radius,
   disabled = false,
+  hitFrom = -140,
+  hitWidth = 360,
+  active = true,
+  arc = false,
+  onActive,
 }: {
   items: { key: string | number; label: string }[];
   index: number;
@@ -29,10 +34,16 @@ export default function Wheel({
   label: string;
   radius: number;
   disabled?: boolean;
+  hitFrom?: number;
+  hitWidth?: number;
+  active?: boolean;
+  arc?: boolean;
+  onActive?: () => void;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const idxRef = useRef(index);
   const cbRef = useRef(onChange);
+  const actRef = useRef(onActive);
   const accRef = useRef(0);
   const lastRef = useRef(0);
   const dragRef = useRef<number | null>(null);
@@ -42,6 +53,7 @@ export default function Wheel({
   useEffect(() => {
     idxRef.current = index;
     cbRef.current = onChange;
+    actRef.current = onActive;
   });
 
   const move = useCallback(
@@ -60,6 +72,7 @@ export default function Wheel({
     if (!el || disabled || count < 2) return;
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      actRef.current?.();
       accRef.current += e.deltaY;
       const now = performance.now();
       if (Math.abs(accRef.current) >= 50 && now - lastRef.current > 80) {
@@ -72,8 +85,12 @@ export default function Wheel({
     return () => el.removeEventListener("wheel", onWheel);
   }, [move, disabled, count]);
 
+  const ang = (VISIBLE * STEP_DEG * Math.PI) / 180;
+  const sx = side === "left" ? -1 : 1;
+  const arcD = `M ${sx * radius * Math.cos(ang)} ${-radius * Math.sin(ang)} A ${radius} ${radius} 0 0 ${side === "left" ? 0 : 1} ${sx * radius * Math.cos(ang)} ${radius * Math.sin(ang)}`;
+  const arcLen = radius * 2 * ang;
   const hitH = 2 * radius * Math.sin((VISIBLE * STEP_DEG * Math.PI) / 180) + 110;
-  const hitLeft = side === "left" ? -radius - 240 : radius - 140;
+  const hitLeft = side === "left" ? -radius - 240 : radius + hitFrom;
 
   return (
     <div
@@ -122,15 +139,34 @@ export default function Wheel({
       onPointerLeave={() => {
         dragRef.current = null;
       }}
-      style={{ position: "absolute", left: 0, top: 0, width: 0, height: 0, touchAction: "none" }}
+      onPointerEnter={() => onActive?.()} onFocus={() => onActive?.()} style={{ position: "absolute", left: 0, top: 0, width: 0, height: 0, touchAction: "none", transformOrigin: "0 0", transform: active ? "scale(1)" : "scale(0.95)", opacity: active ? 1 : 0.5, filter: active ? "none" : "blur(0.5px)", transition: "transform 400ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms, filter 300ms" }}
       className={`group outline-none ${disabled ? "opacity-40" : ""}`}
     >
       {/* vùng nhận cuộn và kéo bao quanh cung */}
       <div
         aria-hidden
-        style={{ position: "absolute", left: hitLeft, top: -hitH / 2, width: 360, height: hitH }}
+        style={{ position: "absolute", left: hitLeft, top: -hitH / 2, width: hitWidth, height: hitH }}
         className="rounded-[2rem] transition-shadow group-focus-visible:ring-2 group-focus-visible:ring-sky/60"
       />
+
+      {arc && (
+        <svg aria-hidden width={1} height={1} style={{ position: "absolute", left: 0, top: 0, overflow: "visible", pointerEvents: "none" }}>
+          <path
+            d={arcD}
+            fill="none"
+            stroke="#d4a05f"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeDasharray={arcLen}
+            strokeDashoffset={active ? 0 : arcLen}
+            style={{
+              opacity: active ? 0.9 : 0,
+              filter: "drop-shadow(0 0 6px #d4a05f)",
+              transition: "stroke-dashoffset 600ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms",
+            }}
+          />
+        </svg>
+      )}
 
       {items.map((it, i) => {
         const off = i - index;
@@ -177,7 +213,7 @@ export default function Wheel({
                 }
               }}
               className={`absolute top-0 -translate-y-1/2 max-w-[190px] truncate whitespace-nowrap px-1 py-1 text-left transition-colors ${
-                selected ? "text-xl font-bold text-white" : "text-[15px] font-medium text-white/70 hover:text-white"
+                selected ? `text-xl font-bold text-white ${arc && active ? "rounded-full bg-white/10 ring-1 ring-amber-retro/70" : ""}` : "text-[15px] font-medium text-white/70 hover:text-white"
               }`}
               style={{ ...(side === "left" ? { right: GAP } : { left: GAP }), textShadow: "0 1px 10px rgba(0,0,0,0.65)" }}
             >

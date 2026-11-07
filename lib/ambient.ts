@@ -364,6 +364,7 @@ function start(): boolean {
 
 export function play() {
   load();
+  if (state.soundId === "none") return;
   if (start()) set({ playing: true });
 }
 
@@ -386,7 +387,8 @@ export function setSound(id: string) {
   load();
   if (!SOUNDS.some((s) => s.id === id)) return;
   set({ soundId: id });
-  if (state.playing) start();
+  if (id === "none") pause();
+  else if (state.playing) start();
 }
 
 export function stepSound(dir: 1 | -1) {
@@ -513,4 +515,73 @@ export function getLevel(): number {
   levelPulse = Math.max(raw, levelPulse * 0.88);
   return levelPulse;
 }
-export const ambient = { play, pause, toggle, setSound, stepSound, setVolume, unlock, chime, getLevel };
+let bandData: ReturnType<typeof makeBuf> | null = null;
+
+// n vạch (0..1) từ phổ tần số của âm nền; trả về 0 khi đang dừng.
+export function getBands(n: number): number[] {
+  const out = new Array<number>(n).fill(0);
+  if (!analyser || !state.playing) return out;
+  if (!bandData || bandData.length !== analyser.frequencyBinCount) bandData = makeBuf(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(bandData);
+  const usable = Math.min(bandData.length, 48);
+  const per = Math.max(1, Math.floor(usable / n));
+  for (let i = 0; i < n; i++) {
+    let sum = 0;
+    for (let j = 0; j < per; j++) sum += bandData[i * per + j] ?? 0;
+    out[i] = sum / per / 255;
+  }
+  return out;
+}
+// Còn 10 giây: 3 tiếng "ting" nhanh. Phát cả khi âm nền đang tắt.
+export function warn() {
+  const c = getCtx();
+  if (!c) return;
+  if (c.state === "suspended") void c.resume();
+  const t = c.currentTime + 0.02;
+  [0, 0.14, 0.28].forEach((d) => {
+    const o = c.createOscillator();
+    o.type = "sine";
+    o.frequency.value = 1568;
+    const g = c.createGain();
+    g.gain.value = 0.0001;
+    o.connect(g);
+    g.connect(c.destination);
+    const s = t + d;
+    g.gain.setValueAtTime(0.0001, s);
+    g.gain.linearRampToValueAtTime(0.16, s + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, s + 0.3);
+    o.start(s);
+    o.stop(s + 0.35);
+    o.onended = () => {
+      o.disconnect();
+      g.disconnect();
+    };
+  });
+}
+
+// 5 giây cuối: một tiếng "tíc" khô, ngắn như kim đồng hồ.
+export function tick() {
+  const c = getCtx();
+  if (!c) return;
+  if (c.state === "suspended") void c.resume();
+  const s = c.currentTime + 0.01;
+  [1400, 700].forEach((f, i) => {
+    const o = c.createOscillator();
+    o.type = i === 0 ? "square" : "sine";
+    o.frequency.value = f;
+    const g = c.createGain();
+    g.gain.value = 0.0001;
+    o.connect(g);
+    g.connect(c.destination);
+    g.gain.setValueAtTime(0.0001, s);
+    g.gain.linearRampToValueAtTime(i === 0 ? 0.05 : 0.14, s + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0001, s + 0.05);
+    o.start(s);
+    o.stop(s + 0.08);
+    o.onended = () => {
+      o.disconnect();
+      g.disconnect();
+    };
+  });
+}
+export const ambient = { play, pause, toggle, setSound, stepSound, setVolume, unlock, chime, getLevel, getBands, warn, tick };

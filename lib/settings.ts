@@ -12,6 +12,7 @@ export interface Settings {
   longBreakMinutes: number; // Pomodoro: nghỉ dài
   pomoRounds: number; // Pomodoro: số hiệp mỗi vòng
   autoSound: boolean; // nhạc chạy và dừng theo đồng hồ
+  studyTotalMin: number; // tổng thời gian muốn học trong một phiên (phút)
   checkpointEvery: number; // chúc mừng và hiện bảng "Xong!" sau mỗi N task (6..8)
 }
 
@@ -25,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   longBreakMinutes: 15,
   pomoRounds: 4,
   autoSound: true,
+  studyTotalMin: 60,
   checkpointEvery: 7,
 };
 export const SETTINGS_KEY = "lumo.settings.v1";
@@ -42,7 +44,7 @@ function parse(raw: string): Settings {
     const d = DEFAULT_SETTINGS;
     return {
       reduceMotion: p.reduceMotion === true,
-      sessionMinutes: clampInt(p.sessionMinutes, 5, 240, d.sessionMinutes),
+      sessionMinutes: clampInt(p.sessionMinutes, 5, 535, d.sessionMinutes),
       sessionTasks: clampInt(p.sessionTasks, 3, 20, d.sessionTasks),
       dailyGoalXp: clampInt(p.dailyGoalXp, 10, 100, d.dailyGoalXp),
       focusMinutes: clampInt(p.focusMinutes, 5, 90, d.focusMinutes),
@@ -50,6 +52,7 @@ function parse(raw: string): Settings {
       longBreakMinutes: clampInt(p.longBreakMinutes, 5, 60, d.longBreakMinutes),
       pomoRounds: clampInt(p.pomoRounds, 2, 8, d.pomoRounds),
       autoSound: p.autoSound !== false,
+      studyTotalMin: clampInt(p.studyTotalMin, 10, 535, d.studyTotalMin),
       checkpointEvery: clampInt(p.checkpointEvery, 6, 8, d.checkpointEvery),
     };
   } catch {

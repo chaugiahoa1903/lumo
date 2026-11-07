@@ -11,7 +11,7 @@ import PageNav from "@/components/PageNav";
 import SettingsApplier from "@/components/SettingsApplier";
 import CommandPalette from "@/components/CommandPalette";
 import BadgeWatcher from "@/components/BadgeWatcher";
-import SoundPill from "@/components/SoundPill";
+import MiniPlayer from "@/components/MiniPlayer";
 import { ToastProvider } from "@/components/Toast";
 import { DialogProvider } from "@/components/Dialog";
 import PageDots from "@/components/PageDots";
@@ -69,7 +69,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Chrome>
           <CommandPalette />
           <BadgeWatcher />
-          <SoundPill />
+          <MiniPlayer />
           <PageDots />
         </DialogProvider>
         </ToastProvider>

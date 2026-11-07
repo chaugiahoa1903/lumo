@@ -96,6 +96,9 @@ interface Props {
   focusMin: number;
   focusLocked: boolean;
   onFocusMin: (m: number) => void;
+  totalMin?: number;
+  onTotalMin?: (m: number) => void;
+  planText?: string;
   onSetup: () => void;
   mainIcon: "play" | "pause" | "skip";
   mainLabel: string;
@@ -114,6 +117,7 @@ interface Props {
 export default function PomoStage(p: Props) {
   const amb = useAmbient();
   const [R, setR] = useState(320);
+  const [unitSel, setUnitSel] = useState<"hour" | "min">("hour");
 
   useEffect(() => {
     const f = () => setR(wheelRadius(window.innerWidth, window.innerHeight));
@@ -131,6 +135,13 @@ export default function PomoStage(p: Props) {
     : [...BLOCK_OPTIONS, p.focusMin].sort((a, b) => a - b);
   const blockItems = blockOpts.map((m) => ({ key: m, label: `${m} phút` }));
   const blockIndex = Math.max(0, blockOpts.indexOf(p.focusMin));
+  const onTotal = p.onTotalMin;
+  const totalSel = p.totalMin ?? 0;
+  const hoursSel = Math.floor(totalSel / 60);
+  const minsSel = totalSel % 60;
+  const hourItems = Array.from({ length: 9 }, (_, h) => ({ key: h, label: `${h} giờ` }));
+  const minValues = Array.from({ length: 12 }, (_, i) => i * 5).filter((m) => (hoursSel === 0 ? m >= 10 : true));
+  const minItems = minValues.map((m) => ({ key: m, label: `${m} ph` }));
 
   const sel = "rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-sm text-white backdrop-blur";
 
@@ -209,7 +220,31 @@ export default function PomoStage(p: Props) {
             radius={R}
             onChange={(i) => ambient.setSound(SOUNDS[i].id)}
           />
-          <Wheel
+          {onTotal ? (
+<>
+            <Wheel
+              side="right" arc active={unitSel === "min"} onActive={() => setUnitSel("min")}
+              label="Chọn số phút học"
+              items={minItems}
+              index={Math.max(0, minValues.indexOf(minsSel))}
+              radius={R + 105}
+              hitFrom={-20}
+              hitWidth={130}
+              disabled={p.focusLocked}
+              onChange={(i) => onTotal(hoursSel * 60 + minValues[i])}
+            />
+            <Wheel
+              side="right" arc active={unitSel === "hour"} onActive={() => setUnitSel("hour")}
+              label="Chọn số giờ học"
+              items={hourItems}
+              index={Math.min(8, hoursSel)}
+              radius={R}
+              hitFrom={-20}
+              hitWidth={100}
+              disabled={p.focusLocked}
+              onChange={(i) => onTotal(i * 60 + minsSel)}
+            />
+          </>) : (<Wheel
             side="right"
             label="Chọn độ dài hiệp"
             items={blockItems}
@@ -217,7 +252,7 @@ export default function PomoStage(p: Props) {
             radius={R}
             disabled={p.focusLocked}
             onChange={(i) => p.onFocusMin(blockOpts[i])}
-          />
+          />)}
         </div>
 
         <div className="absolute" style={{ transform: "translate(-50%, -50%)" }}>
@@ -238,16 +273,21 @@ export default function PomoStage(p: Props) {
               onClick={p.onMain}
               disabled={p.mainDisabled}
               aria-label={p.mainLabel}
-              className="btn-press flex h-14 w-14 items-center justify-center rounded-full bg-white text-ink disabled:cursor-not-allowed disabled:opacity-40"
+              className="btn-press flex h-14 items-center justify-center gap-2.5 rounded-full bg-white px-8 text-base font-bold text-ink disabled:cursor-not-allowed disabled:opacity-40"
             >
-              <Ico className="h-6 w-6">{mainIcon}</Ico>
+              <Ico className="h-5 w-5">{mainIcon}</Ico><span>{p.mainLabel}</span>
             </button>
             <p
               className="mt-2 text-xs font-semibold uppercase tracking-widest text-white"
               style={{ textShadow: "0 1px 10px rgba(0,0,0,0.7)" }}
             >
-              {p.mainLabel} · {p.roundText}
+              {p.roundText}
             </p>
+              {p.planText && (
+                <p className="mt-1 max-w-[460px] text-center text-xs text-white/90" style={{ textShadow: "0 1px 10px rgba(0,0,0,0.7)" }}>
+                  {p.planText}
+                </p>
+              )}
 
             <div className="mt-3 w-[min(92vw,460px)] rounded-3xl border border-white/20 bg-[#060a22]/60 px-5 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_16px_40px_rgba(0,0,0,0.35)] backdrop-blur-xl">
               <p className="truncate font-display text-2xl uppercase text-white">{p.title}</p>

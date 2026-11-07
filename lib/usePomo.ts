@@ -84,6 +84,15 @@ export function usePomo(opts: { onBlockOver?: () => void } = {}) {
     if (!over) bellRef.current = false;
   }, [ticking, over]);
 
+  // Cảnh báo sắp hết hiệp: còn 10 giây ting x3, 5 giây cuối tíc mỗi giây.
+  const warnRef = useRef(-1);
+  useEffect(() => {
+    if (remainingSec > 10) warnRef.current = -1;
+    if (!ticking || over || warnRef.current === remainingSec) return;
+    warnRef.current = remainingSec;
+    if (remainingSec === 10) ambient.warn();
+    else if (remainingSec >= 1 && remainingSec <= 5) ambient.tick();
+  }, [ticking, over, remainingSec]);
   // Giờ còn lại hiện trên tiêu đề tab
   useEffect(() => {
     if (ticking) document.title = `${formatClock(remainingSec)} · Lumo`;
