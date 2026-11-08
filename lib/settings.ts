@@ -13,6 +13,7 @@ export interface Settings {
   pomoRounds: number; // Pomodoro: số hiệp mỗi vòng
   autoSound: boolean; // nhạc chạy và dừng theo đồng hồ
   studyTotalMin: number; // tổng thời gian muốn học trong một phiên (phút)
+  displayName: string; // tên hiển thị ở trang Tổng quan
   checkpointEvery: number; // chúc mừng và hiện bảng "Xong!" sau mỗi N task (6..8)
 }
 
@@ -27,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pomoRounds: 4,
   autoSound: true,
   studyTotalMin: 60,
+  displayName: "Gia Hòa",
   checkpointEvery: 7,
 };
 export const SETTINGS_KEY = "lumo.settings.v1";
@@ -45,7 +47,7 @@ function parse(raw: string): Settings {
     return {
       reduceMotion: p.reduceMotion === true,
       sessionMinutes: clampInt(p.sessionMinutes, 5, 535, d.sessionMinutes),
-      sessionTasks: clampInt(p.sessionTasks, 3, 20, d.sessionTasks),
+      sessionTasks: clampInt(p.sessionTasks, 3, 60, d.sessionTasks),
       dailyGoalXp: clampInt(p.dailyGoalXp, 10, 100, d.dailyGoalXp),
       focusMinutes: clampInt(p.focusMinutes, 5, 90, d.focusMinutes),
       breakMinutes: clampInt(p.breakMinutes, 1, 30, d.breakMinutes),
@@ -53,6 +55,7 @@ function parse(raw: string): Settings {
       pomoRounds: clampInt(p.pomoRounds, 2, 8, d.pomoRounds),
       autoSound: p.autoSound !== false,
       studyTotalMin: clampInt(p.studyTotalMin, 10, 535, d.studyTotalMin),
+      displayName: typeof p.displayName === "string" && p.displayName.trim() ? p.displayName.trim().slice(0, 40) : d.displayName,
       checkpointEvery: clampInt(p.checkpointEvery, 6, 8, d.checkpointEvery),
     };
   } catch {

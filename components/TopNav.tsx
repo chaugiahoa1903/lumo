@@ -6,19 +6,15 @@ import { useEffect } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "@/lib/db";
 import { syncReviews } from "@/lib/review";
+import { NAV } from "@/lib/navItems";
+import { useT } from "@/lib/i18n";
 import { openPalette } from "@/components/CommandPalette";
-
-const ITEMS = [
-  { href: "/library", label: "Thư viện" },
-  { href: "/plan", label: "Lộ trình" },
-  { href: "/next", label: "Next Up" },
-  { href: "/review", label: "Ôn tập" },
-  { href: "/progress", label: "Tiến độ" },
-];
+import DockNav from "@/components/DockNav";
 
 // Thanh trên cùng có nền tối đặc: nội dung cuộn qua bị che hẳn, chữ và logo luôn đọc được.
 export default function TopNav() {
   const pathname = usePathname();
+  const t = useT();
   const due = useLiveQuery(() => db.reviews.where("dueAt").belowOrEqual(Date.now()).count(), []);
   const settingsActive = pathname.startsWith("/settings");
 
@@ -28,19 +24,21 @@ export default function TopNav() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-30 hidden h-[72px] items-center justify-between border-b border-white/10 bg-[#050818]/90 px-8 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-xl md:flex">
-      <Link href="/library" className="font-wordmark text-3xl leading-none text-white" aria-label="Lumo, về Thư viện">
+      <Link href="/overview" className="font-wordmark text-3xl leading-none text-white" aria-label={t("nav.home")}>
         LUMO
       </Link>
 
-      <nav aria-label="Điều hướng chính" className="absolute left-1/2 flex -translate-x-1/2 items-center gap-9">
-        {ITEMS.map((it) => {
+      <DockNav label={t("nav.main")} className="absolute left-1/2 flex -translate-x-1/2 items-center gap-9">
+        {NAV.map((it) => {
           const active = pathname.startsWith(it.href);
           return (
             <Link
               key={it.href}
+              data-dock
               href={it.href}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+              style={{ transformOrigin: "center bottom" }}
+              className={`flex items-center gap-2 whitespace-nowrap text-sm font-medium transition-colors ${
                 active ? "text-white" : "text-white/70 hover:text-white"
               }`}
             >
@@ -50,21 +48,21 @@ export default function TopNav() {
                   active ? "scale-100" : "scale-0"
                 }`}
               />
-              {it.label}
+              {t(it.key)}
               {it.href === "/review" && due ? (
                 <span className="rounded-full bg-amber-retro px-1.5 text-[11px] font-semibold text-ink">{due}</span>
               ) : null}
             </Link>
           );
         })}
-      </nav>
+      </DockNav>
 
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={openPalette}
-          aria-label="Tìm nhanh (Ctrl K)"
-          title="Tìm nhanh (Ctrl K)"
+          aria-label={t("nav.search")}
+          title={t("nav.search")}
           className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20"
         >
           <svg
@@ -102,7 +100,7 @@ export default function TopNav() {
             <circle cx="16" cy="7" r="2" />
             <circle cx="8" cy="17" r="2" />
           </svg>
-          Cài đặt
+          {t("nav.settings")}
         </Link>
       </div>
     </header>

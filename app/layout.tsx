@@ -9,6 +9,7 @@ import Chrome from "@/components/Chrome";
 import GlassBackdrop from "@/components/GlassBackdrop";
 import PageNav from "@/components/PageNav";
 import SettingsApplier from "@/components/SettingsApplier";
+import LangApplier from "@/components/LangApplier";
 import CommandPalette from "@/components/CommandPalette";
 import BadgeWatcher from "@/components/BadgeWatcher";
 import MiniPlayer from "@/components/MiniPlayer";
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ToastProvider>
         <DialogProvider>
           <SettingsApplier />
+          <LangApplier />
           <Chrome>
             <div aria-hidden className="pointer-events-none fixed inset-0 z-0">
               <GlassBackdrop />

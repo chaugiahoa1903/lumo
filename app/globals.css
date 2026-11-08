@@ -357,3 +357,30 @@ body {
 /* lumo-hide-page-scrollbar: ẩn thanh cuộn của cả trang, PageDots thay thế */
 html { scrollbar-width: none; }
 html::-webkit-scrollbar { display: none; }
+
+
+/* Lumo: hiệu ứng đổi ngôn ngữ (chữ trượt lên rồi mờ, chữ mới trượt vào) */
+@keyframes lang-out {
+  to {
+    transform: translateY(-0.6em);
+    opacity: 0;
+  }
+}
+@keyframes lang-in {
+  from {
+    transform: translateY(0.6em);
+    opacity: 0;
+  }
+}
+html.lang-out :is(h1, h2, h3, p, label, legend, li, button, th, td) {
+  animation: lang-out 260ms ease-in forwards;
+}
+html.lang-in :is(h1, h2, h3, p, label, legend, li, button, th, td) {
+  animation: lang-in 380ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  html.lang-out *,
+  html.lang-in * {
+    animation: none !important;
+  }
+}
