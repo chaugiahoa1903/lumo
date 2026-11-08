@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="Lumo: học từng bước nhỏ, giữ nhịp mỗi ngày">
+  <defs>
+    <linearGradient id="stripe" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2358b8"/>
+      <stop offset="1" stop-color="#071236"/>
+    </linearGradient>
+    <pattern id="stripes" width="44" height="640" patternUnits="userSpaceOnUse">
+      <rect width="44" height="640" fill="url(#stripe)"/>
+    </pattern>
+    <linearGradient id="vig" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#030816" stop-opacity="0.78"/>
+      <stop offset="0.55" stop-color="#030816" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#030816" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="light" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#dfe6f5" stop-opacity="0"/>
+      <stop offset="1" stop-color="#dfe6f5" stop-opacity="0.55"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#stripes)"/>
+  <polygon points="520,640 1280,150 1280,640" fill="url(#light)"/>
+  <rect width="1280" height="640" fill="url(#vig)"/>
+
+  <!-- vòng bánh xe lồng quanh đồng hồ -->
+  <g fill="none" stroke="#ffffff">
+    <circle cx="990" cy="320" r="290" stroke-opacity="0.12"/>
+    <circle cx="990" cy="320" r="225" stroke-opacity="0.25"/>
+  </g>
+  <g>
+    <circle cx="765" cy="320" r="7" fill="#d4a05f"/>
+    <circle cx="765" cy="320" r="7" fill="#d4a05f" filter="url(#glow)"/>
+    <circle cx="772" cy="228" r="3.5" fill="#ffffff" fill-opacity="0.5"/>
+    <circle cx="772" cy="412" r="3.5" fill="#ffffff" fill-opacity="0.5"/>
+    <circle cx="800" cy="146" r="3.5" fill="#ffffff" fill-opacity="0.35"/>
+    <circle cx="800" cy="494" r="3.5" fill="#ffffff" fill-opacity="0.35"/>
+  </g>
+
+  <!-- đồng hồ -->
+  <circle cx="990" cy="320" r="160" fill="#f5f5f7"/>
+  <circle cx="990" cy="320" r="138" fill="none" stroke="#d9dde6" stroke-width="3"/>
+  <circle cx="990" cy="320" r="138" fill="none" stroke="#0047ab" stroke-width="6" stroke-linecap="round"
+          stroke-dasharray="347 867" transform="rotate(-90 990 320)"/>
+  <circle cx="1068.6" cy="206.5" r="10" fill="#d4a05f" stroke="#0e0e0e" stroke-width="2"/>
+  <text x="990" y="272" text-anchor="middle" font-family="Be Vietnam Pro, Segoe UI, Arial, sans-serif" font-size="17" letter-spacing="4" fill="#6b7280">TẬP TRUNG</text>
+  <text x="990" y="350" text-anchor="middle" font-family="Anton, Impact, Arial Narrow, sans-serif" font-size="92" fill="#0e0e0e">25:00</text>
+  <text x="990" y="392" text-anchor="middle" font-family="Be Vietnam Pro, Segoe UI, Arial, sans-serif" font-size="20" fill="#6b7280">Hiệp 1/4</text>
+
+  <!-- chữ -->
+  <text x="80" y="300" font-family="Anton, Impact, Arial Narrow, sans-serif" font-size="190" letter-spacing="6" fill="#ffffff">LUMO</text>
+  <rect x="84" y="326" width="96" height="8" rx="4" fill="#d4a05f"/>
+  <text x="84" y="396" font-family="Be Vietnam Pro, Segoe UI, Arial, sans-serif" font-size="36" font-weight="700" fill="#ffffff">Học từng bước nhỏ, giữ nhịp mỗi ngày.</text>
+  <text x="84" y="446" font-family="Be Vietnam Pro, Segoe UI, Arial, sans-serif" font-size="24" fill="#ffffff" fill-opacity="0.85">Luna chia tài liệu thành micro-task bằng NLP cổ điển,</text>
+  <text x="84" y="480" font-family="Be Vietnam Pro, Segoe UI, Arial, sans-serif" font-size="24" fill="#ffffff" fill-opacity="0.85">chạy ngay trong trình duyệt của bạn.</text>
+
+  <g font-family="Be Vietnam Pro, Segoe UI, Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff">
+    <rect x="84" y="522" width="190" height="42" rx="21" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="2"/>
+    <text x="179" y="550" text-anchor="middle">Không backend</text>
+    <rect x="288" y="522" width="190" height="42" rx="21" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="2"/>
+    <text x="383" y="550" text-anchor="middle">Không API key</text>
+    <rect x="492" y="522" width="190" height="42" rx="21" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="2"/>
+    <text x="587" y="550" text-anchor="middle">Dữ liệu trên máy</text>
+  </g>
+</svg>
